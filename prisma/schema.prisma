@@ -12,7 +12,162 @@ datasource db {
   provider = "postgresql"
 }
 
-model dummy {
-  id   Int    @id @default(autoincrement())
-  name String
+// In prisma all fields are not nullable by default
+
+enum Role {
+  ADMIN
+  MANAGER
+  TEAM_LEADER
+  EMPLOYEE
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum LeaveType {
+  CASUAL
+  SICK
+  UNPAID
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  HALF_DAY
+}
+
+enum TaskStatus {
+  PENDING
+  COMPLETED
+}
+
+// Employee Model
+model Employee {
+  empId            Int              @id @default(autoincrement())
+  firstName        String
+  lastName         String
+  email            String           @unique
+  phoneNo          String           @unique
+  password         String
+  role             Role
+  gender           Gender
+  address          String
+  pinCode          String
+  city             String
+  state            String
+  joiningDate      DateTime
+  isActive         Boolean
+  departmentId     Int
+  department       Department       @relation(fields: [departmentId], references: [deptId])
+  qualification    Qualification[]
+  payroll          Payroll?
+  leaves           Leave[]
+  attendance       Attendance[]
+  payrollHistory   PayrollHistory[] @relation("employeePayroll")
+  payrollChangedBy PayrollHistory[] @relation("changedByPayroll")
+  assignedTasks    Task[]           @relation("assignedTasks")
+  assignedByTasks  Task[]           @relation("assignedByTasks")
+  totalLeaves      Int              @default(20)
+  remainingLeaves  Int              @default(20)
+  refreshToken     String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+}
+
+// Qualification Model
+model Qualification {
+  qualId      Int      @id @default(autoincrement())
+  empId       Int
+  employee    Employee @relation(fields: [empId], references: [empId])
+  degree      String
+  university  String
+  passingYear DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// Department Model
+model Department {
+  deptId    Int        @id @default(autoincrement())
+  name      String
+  employees Employee[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+// Payroll Model
+model Payroll {
+  payrollId Int      @id @default(autoincrement())
+  empId     Int      @unique
+  employee  Employee @relation(fields: [empId], references: [empId])
+  issueDate DateTime
+  salary    Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Leave Model
+model Leave {
+  leaveId   Int         @id @default(autoincrement())
+  empId     Int
+  employee  Employee    @relation(fields: [empId], references: [empId])
+  startDate DateTime
+  endDate   DateTime
+  reason    String
+  status    LeaveStatus
+  leaveType LeaveType
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+}
+
+// Attendance Model
+model Attendance {
+  attendanceId Int              @id @default(autoincrement())
+  empId        Int
+  employee     Employee         @relation(fields: [empId], references: [empId])
+  date         DateTime
+  status       AttendanceStatus
+  checkIn      DateTime
+  checkOut     DateTime
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+}
+
+//Payroll History Model
+model PayrollHistory {
+  payrollHistoryId Int      @id @default(autoincrement())
+  empId            Int
+  employee         Employee @relation("employeePayroll", fields: [empId], references: [empId])
+  oldSalary        Int
+  newSalary        Int
+  reason           String
+  changeDate       DateTime
+  changedById      Int
+  changedBy        Employee @relation("changedByPayroll", fields: [changedById], references: [empId])
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model Task {
+  taskId       Int        @id @default(autoincrement())
+  taskName     String
+  description  String
+  issueDate    DateTime
+  submitDate   DateTime
+  dueDate      DateTime
+  status       TaskStatus
+  assignedToId Int
+  assignedTo   Employee   @relation("assignedTasks", fields: [assignedToId], references: [empId])
+  assignedById Int
+  assignedBy   Employee   @relation("assignedByTasks", fields: [assignedById], references: [empId])
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
 }
