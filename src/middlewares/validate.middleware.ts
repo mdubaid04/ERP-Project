@@ -1,14 +1,14 @@
 import type { Request, Response, NextFunction } from "express";
-import type { ZodSchema } from "zod/v3";
+import type { AnyZodObject, ZodSchema } from "zod/v3";
+import { z } from "zod";
 import { ApiError } from "../utils/ApiError";
-import { Result } from "pg";
-import * as path from "node:path";
-const validate = (schema: ZodSchema) => {
+const validate = (schema: z.ZodTypeAny) => {
   return (req: Request, res: Response, next: NextFunction) => {
+    console.log(req.body);
     const result = schema.safeParse(req.body);
     if (!result.success) {
-      const message = result.error.errors[0]?.message;
-      return new ApiError(400, message);
+      const message = result.error.issues[0]?.message;
+      return next(new ApiError(400, message));
     }
     req.body = result.data;
     next();

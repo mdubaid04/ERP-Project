@@ -1,27 +1,58 @@
 import * as z from "zod";
 
 const registerSchema = z.object({
-  firstName: z.string().min(1).max(15),
-  lastName: z.string().min(1).max(15),
-  email: z.email(),
-  phoneNo: z.e164(),
-  password: z.string().min(8),
-  confirmPassword: z.string().min(8),
+  firstName: z
+    .string()
+    .min(1, "firstName can't be Empty")
+    .max(15, "firstName can't be more than 15 characters"),
+  lastName: z
+    .string()
+    .min(1, "lastName can't be Empty")
+    .max(15, "lastName can't be more than 15 characters"),
+  email: z.email("Invalid email format"),
+  phoneNo: z.e164("Invalid phone number format"),
+  password: z
+    .string()
+    .min(8, "password must be at least 8 characters long")
+    .regex(/[A-Z]/, "password must contain at least one uppercase letter")
+    .regex(/[0-9]/, "password must contain at least one digit")
+    .regex(
+      /[!@#$%^&*]/,
+      "password must contain at least one special character"
+    ),
   role: z
-    .enum(["ADMIN", "MANAGER", "TEAM_LEADER", "EMPLOYEE"])
+    .enum(
+      ["ADMIN", "MANAGER", "TEAM_LEADER", "EMPLOYEE"],
+      "role can't be empty"
+    )
     .default("EMPLOYEE"),
-  gender: z.enum(["MALE", "FEMALE"]).default("MALE"),
-  address: z.string().min(1).max(50),
-  city: z.string().min(1).max(15),
-  state: z.string().min(1).max(15),
-  pinCode: z.string().min(1).max(15),
-  departmentId: z.number(),
+  gender: z.enum(["MALE", "FEMALE"], "gender can't be empty").default("MALE"),
+  address: z
+    .string()
+    .min(1, "address can't be empty")
+    .max(50, "address can't be more than 50 characters"),
+  city: z
+    .string()
+    .min(1, "city can't be empty")
+    .max(15, "city can't be more than 15 characters"),
+  state: z
+    .string()
+    .min(1, "state can't be empty")
+    .max(15, "state can't be more than 15 characters"),
+  pinCode: z
+    .string()
+    .min(1, "pinCode can't be empty")
+    .max(15, "pinCode can't be more than 15 characters"),
 });
 
 const loginSchema = z.object({
-  email: z.email(),
-  phoneNo: z.e164().optional(),
-  password: z.string().min(8),
+  email: z.email("Invalid email format"),
+  phoneNo: z.e164("Invalid phone number format").optional(),
+  password: z.string().min(8, "password must be at least 8 characters long"),
 });
 
-export { registerSchema, loginSchema };
+const verifyOTPSchema = z.object({
+  otp: z.string().length(7, "OTP must be 6 digits"),
+});
+
+export { registerSchema, loginSchema, verifyOTPSchema };

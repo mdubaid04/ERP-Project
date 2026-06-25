@@ -55,7 +55,9 @@ model Employee {
   firstName        String
   lastName         String
   email            String           @unique
+  profilePic       String?
   phoneNo          String           @unique
+  dateOfBirth      DateTime?
   password         String
   role             Role
   gender           Gender
@@ -65,8 +67,8 @@ model Employee {
   state            String
   joiningDate      DateTime
   isActive         Boolean
-  departmentId     Int
-  department       Department       @relation(fields: [departmentId], references: [deptId])
+  departmentId     Int?
+  department       Department?      @relation(fields: [departmentId], references: [deptId])
   qualification    Qualification[]
   payroll          Payroll?
   leaves           Leave[]
@@ -77,6 +79,8 @@ model Employee {
   assignedByTasks  Task[]           @relation("assignedByTasks")
   totalLeaves      Int              @default(20)
   remainingLeaves  Int              @default(20)
+  otp              String?
+  otpExpiry        DateTime?
   refreshToken     String?
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
