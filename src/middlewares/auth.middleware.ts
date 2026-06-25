@@ -3,7 +3,7 @@ import jwt from "jsonwebtoken";
 import { ApiError } from "../utils/ApiError";
 import { asyncHanldler } from "../utils/asyncHandler";
 import { prisma } from "../db/prisma";
-import type { Role } from "../../generated/prisma/enums";
+import { Role } from "../../generated/prisma/enums";
 
 interface jwtPayload {
   id: number;
@@ -48,6 +48,16 @@ const veriyJwt = asyncHanldler(
     } catch (error) {
       console.log("Error in auth middleware", error);
     }
+  }
+);
+
+// is Admin middleware
+const isAdmin = asyncHanldler(
+  async (req: Request, res: Response, next: NextFunction) => {
+    if (req.user.role !== Role.ADMIN) {
+      throw new ApiError(403, "Access Denied");
+    }
+    next();
   }
 );
 
