@@ -6,13 +6,14 @@ import { prisma } from "../db/prisma";
 import { Role } from "../../generated/prisma/enums";
 
 interface jwtPayload {
-  id: number;
-  name: string;
+  emp_id: number;
+  firstName: string;
+  lastName: string;
   email: string;
   role: Role;
 }
 
-const veriyJwt = asyncHanldler(
+const verifyJwt = asyncHanldler(
   async (req: Request, res: Response, next: NextFunction) => {
     const token =
       req.cookies.accessToken ||
@@ -30,7 +31,7 @@ const veriyJwt = asyncHanldler(
       }
       const employee = await prisma.employee.findUnique({
         where: {
-          empId: decoded.id,
+          empId: decoded.emp_id,
         },
         select: {
           empId: true,
@@ -61,4 +62,4 @@ const authorizeRole = async (...roles: string[]) => {
   };
 };
 
-export { veriyJwt, authorizeRole };
+export { verifyJwt, authorizeRole };

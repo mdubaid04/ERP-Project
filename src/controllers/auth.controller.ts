@@ -60,10 +60,10 @@ const loginEmployee = asyncHanldler(async (req: Request, res: Response) => {
       secure: process.env.NODE_ENV === "production",
       maxAge: 5 * 60 * 1000,
     };
-    res.cookie("tempToken", temporaryToken, option);
 
     return res
       .status(200)
+      .cookie("tempToken", temporaryToken, option)
       .json(new ApiResponse(200, "OTP Send To Registered Email", {}));
   } catch (error) {
     console.error("Login Error :", error);
@@ -123,8 +123,6 @@ const verifyOTP = asyncHanldler(async (req: Request, res: Response) => {
       maxAge: 7 * 24 * 60 * 60 * 1000,
     };
     const refreshToken = generateRefreshToken(employee.empId);
-    res.cookie("accessToken", accessToken, accessOption);
-    res.cookie("refreshToken", refreshToken, refreshOption);
     const updatedEmployee = await prisma.employee.update({
       where: {
         email: employee.email,
@@ -150,6 +148,12 @@ const verifyOTP = asyncHanldler(async (req: Request, res: Response) => {
       };
       return res
         .status(200)
+        .cookie("accessToken", accessToken, accessOption)
+        .cookie("refreshToken", refreshToken, refreshOption)
+        .clearCookie("tempToken", {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+        })
         .json(new ApiResponse(200, "OTP Verified Successfully", profile));
     }
     return res
@@ -163,4 +167,72 @@ const verifyOTP = asyncHanldler(async (req: Request, res: Response) => {
   }
 });
 
-export { loginEmployee, verifyOTP };
+// logOut Controller
+
+const logout = asyncHanldler(async (req: Request, res: Response) => {
+  if (!req.user) {
+    throw new ApiError(401, "User Not Logged In");
+  }
+  console.log("------req.user------", req.user.empId);
+  prisma.employee.update({
+    where: {
+      empId: req.user.empId,
+    },
+    data: {
+      refreshToken: null,
+    },
+  });
+  const cookieOption = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+  };
+
+  return res
+    .status(200)
+    .clearCookie("accessToken", cookieOption)
+    .clearCookie("refreshToken", cookieOption)
+    .clearCookie("tempToken", cookieOption)
+    .json(new ApiResponse(200, "Logout Successfully", {}));
+});
+
+// refreshAccess Token Controller
+const refreshAccessToken = asyncHanldler(
+  async (req: Request, res: Response) => {
+    const refreshToken = req.cookies.refreshToken;
+    if (!refreshToken) {
+      throw new ApiError(404, "Refresh Token Not Found");
+    }
+    const employee = await prisma.employee.findUnique({
+      where: {
+        empId: req.user.empId,
+      },
+    });
+    if (!employee) {
+      throw new ApiError(404, "Employee Not Found");
+    }
+
+    if (employee?.refreshToken !== refreshToken) {
+      throw new ApiError(401, "Refresh Token Not Valid Or Expired");
+    }
+    const newAccessToken = generateAccessToken(
+      employee.empId,
+      employee.firstName,
+      employee.lastName,
+      employee.email,
+      employee.role
+    );
+    const accessOption = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 24 * 60 * 60 * 1000,
+    };
+    return res
+      .status(200)
+      .cookie("accessToken", newAccessToken, accessOption)
+      .json(new ApiResponse(200, "Access Token Refreshed Successfully", {}));
+  }
+);
+
+// Export
+
+export { loginEmployee, verifyOTP, logout, refreshAccessToken };
