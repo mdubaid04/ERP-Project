@@ -52,13 +52,13 @@ const veriyJwt = asyncHanldler(
 );
 
 // is Admin middleware
-const isAdmin = asyncHanldler(
-  async (req: Request, res: Response, next: NextFunction) => {
-    if (req.user.role !== Role.ADMIN) {
+const authorizeRole = async (...roles: string[]) => {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    if (!roles.includes(req.user.role)) {
       throw new ApiError(403, "Access Denied");
     }
     next();
-  }
-);
+  };
+};
 
-export { veriyJwt };
+export { veriyJwt, authorizeRole };
