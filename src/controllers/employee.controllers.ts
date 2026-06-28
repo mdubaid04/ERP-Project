@@ -168,6 +168,18 @@ const verifyOTP = asyncHanldler(async (req: Request, res: Response) => {
         otpExpiry: true,
       },
     });
+    if (updatedEmployee.role === "ADMIN") {
+      const profile = {
+        empId: updatedEmployee.empId,
+        firstName: updatedEmployee.firstName,
+        lastName: updatedEmployee.lastName,
+        email: updatedEmployee.email,
+        role: updatedEmployee.role,
+      };
+      return res
+        .status(200)
+        .json(new ApiResponse(200, "OTP Verified Successfully", profile));
+    }
     return res
       .status(200)
       .json(new ApiResponse(200, "OTP Verified Successfully", updatedEmployee));

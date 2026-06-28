@@ -60,13 +60,13 @@ model Employee {
   dateOfBirth      DateTime?
   password         String
   role             Role
-  gender           Gender
-  address          String
-  pinCode          String
-  city             String
-  state            String
-  joiningDate      DateTime
-  isActive         Boolean
+  gender           Gender?
+  address          String?
+  pinCode          String?
+  city             String?
+  state            String?
+  joiningDate      DateTime?
+  isActive         Boolean?
   departmentId     Int?
   department       Department?      @relation(fields: [departmentId], references: [deptId])
   qualification    Qualification[]

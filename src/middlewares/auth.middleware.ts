@@ -51,7 +51,7 @@ const veriyJwt = asyncHanldler(
   }
 );
 
-// is Admin middleware
+// role check middleware
 const authorizeRole = async (...roles: string[]) => {
   return async (req: Request, res: Response, next: NextFunction) => {
     if (!roles.includes(req.user.role)) {

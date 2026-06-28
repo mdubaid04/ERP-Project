@@ -43,6 +43,8 @@ const registerSchema = z.object({
     .string()
     .min(1, "pinCode can't be empty")
     .max(15, "pinCode can't be more than 15 characters"),
+  dateOfBirth: z.date("dateOfBirth can't be empty"),
+  profilePic: z.string(),
 });
 
 const loginSchema = z.object({
