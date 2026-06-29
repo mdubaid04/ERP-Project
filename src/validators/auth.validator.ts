@@ -30,21 +30,24 @@ const registerSchema = z.object({
   address: z
     .string()
     .min(1, "address can't be empty")
-    .max(50, "address can't be more than 50 characters"),
+    .max(50, "address can't be more than 50 characters")
+    .optional(),
   city: z
     .string()
     .min(1, "city can't be empty")
-    .max(15, "city can't be more than 15 characters"),
+    .max(15, "city can't be more than 15 characters")
+    .optional(),
   state: z
     .string()
     .min(1, "state can't be empty")
-    .max(15, "state can't be more than 15 characters"),
+    .max(15, "state can't be more than 15 characters").optional,
   pinCode: z
     .string()
     .min(1, "pinCode can't be empty")
-    .max(15, "pinCode can't be more than 15 characters"),
+    .max(15, "pinCode can't be more than 15 characters")
+    .optional(),
   dateOfBirth: z.date("dateOfBirth can't be empty"),
-  profilePic: z.string(),
+  profilePic: z.string().optional(),
 });
 
 const loginSchema = z.object({
