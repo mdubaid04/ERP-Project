@@ -18,6 +18,7 @@ const verifyJwt = asyncHanldler(
     const token =
       req.cookies.accessToken ||
       req.header("Authrization")?.replace("Bearer ", "");
+
     if (!token) {
       throw new ApiError(404, "Token not found");
     }
@@ -45,6 +46,7 @@ const verifyJwt = asyncHanldler(
         throw new ApiError(404, "Employee not found");
       }
       req.user = employee;
+
       next();
     } catch (error) {
       console.log("Error in auth middleware", error);
@@ -53,10 +55,11 @@ const verifyJwt = asyncHanldler(
 );
 
 // role check middleware
-const authorizeRole = async (...roles: string[]) => {
-  return async (req: Request, res: Response, next: NextFunction) => {
-    if (!roles.includes(req.user.role)) {
-      throw new ApiError(403, "Access Denied");
+const authorizeRole = (...roles: string[]) => {
+  return (req: Request, res: Response, next: NextFunction) => {
+    if (!roles.includes(req.user?.role)) {
+      console.log("#########", req.user);
+      return next(new ApiError(403, "Access Denied"));
     }
     next();
   };

@@ -38,4 +38,24 @@ const registerEmployee = asyncHanldler(async (req: Request, res: Response) => {
     .json(new ApiResponse(201, "Employee registered successfully", employee));
 });
 
-export { registerEmployee };
+// Create Department
+
+const createDepartment = asyncHanldler(async (req: Request, res: Response) => {
+  const { name, managerId } = req.body;
+  const exsistingDepartment = await prisma.department.findFirst({
+    where: {
+      name: name,
+    },
+  });
+  if (exsistingDepartment) {
+    throw new ApiError(400, "Department already exists");
+  }
+  const department = await prisma.department.create({
+    data: { name, managerId },
+  });
+  return res
+    .status(200)
+    .json(new ApiResponse(200, "Department created successfully", department));
+});
+
+export { registerEmployee, createDepartment };
