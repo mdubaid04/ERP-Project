@@ -7,7 +7,7 @@ import { comparePassword } from "../utils/comparePassword";
 import { generatedOtp } from "../utils/otpGeneration";
 import { sendOtpEmail } from "../utils/mailer";
 import tempToken from "../utils/temp_token_for_OTP";
-import jwt from "jsonwebtoken";
+import jwt, { type JwtPayload } from "jsonwebtoken";
 import { generateAccessToken, generateRefreshToken } from "../utils/token";
 
 // Login Controller
@@ -233,6 +233,110 @@ const refreshAccessToken = asyncHanldler(
   }
 );
 
+// Forgot Password
+
+const forgetPassword = asyncHanldler(async (req: Request, res: Response) => {
+  const { email, phoneNo } = req.body;
+  const exsistingEmployee = await prisma.employee.findFirst({
+    where: {
+      OR: [
+        {
+          email: email,
+        },
+        {
+          phoneNo: phoneNo,
+        },
+      ],
+    },
+  });
+  if (!exsistingEmployee) {
+    throw new ApiError(404, "Employee not found");
+  }
+  const otp = generatedOtp();
+  const otpExpiry = new Date(Date.now() + 5 * 60 * 1000);
+  await prisma.employee.update({
+    where: {
+      email: email,
+    },
+    data: {
+      otp: otp,
+      otpExpiry: otpExpiry,
+    },
+  });
+  await sendOtpEmail(email, otp);
+  const token = tempToken(email);
+  const option = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    maxAge: 5 * 60 * 1000,
+  };
+  return res
+    .cookie("tempToken", token, option)
+    .status(200)
+    .json(new ApiResponse(200, "OTP Sent Successfully", {}));
+});
+
+// Reset Password
+const resetPassword = asyncHanldler(async (req: Request, res: Response) => {
+  interface Jwtpayload {
+    email: string;
+  }
+  const { tempToken } = req.cookies;
+  const { otp, newPassword } = req.body;
+  if (!tempToken) {
+    throw new ApiError(404, "Session Expired ");
+  }
+  const decoded = jwt.verify(
+    tempToken,
+    process.env.TEMP_JWT_ACCESS_SECRET!
+  ) as Jwtpayload;
+  if (!decoded) {
+    throw new ApiError(401, "UnAuthorized Or Invalid Token");
+  }
+  const employee = await prisma.employee.findUnique({
+    where: {
+      email: decoded.email,
+    },
+  });
+  if (!employee) {
+    throw new ApiError(404, "Employee not found");
+  }
+  if (employee.otp !== otp) {
+    throw new ApiError(400, "Invalid OTP");
+  }
+  if (employee.otpExpiry! < new Date()) {
+    throw new ApiError(400, "OTP Expired");
+  }
+  if (newPassword === employee.password) {
+    throw new ApiError(400, "New Password can't be same as old password");
+  }
+  await prisma.employee.update({
+    where: {
+      email: decoded.email,
+    },
+    data: {
+      password: newPassword,
+      otp: null,
+      otpExpiry: null,
+    },
+  });
+  const option = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+  };
+  return res
+    .clearCookie("tempToken", option)
+    .status(200)
+    .json(new ApiResponse(200, "Password Reset Successfully", {}));
+});
+
 // Export
 
-export { loginEmployee, verifyOTP, logout, refreshAccessToken };
+export {
+  loginEmployee,
+  verifyOTP,
+  logout,
+  refreshAccessToken,
+  forgetPassword,
+  resetPassword,
+};
