@@ -69,6 +69,7 @@ model Employee {
   isActive         Boolean?
   departmentId     Int?
   department       Department?      @relation(fields: [departmentId], references: [deptId])
+  managedDept      Department?      @relation("DeptManager")
   qualification    Qualification[]
   payroll          Payroll?
   leaves           Leave[]
@@ -102,6 +103,8 @@ model Qualification {
 model Department {
   deptId    Int        @id @default(autoincrement())
   name      String
+  managerId Int?       @unique
+  manager   Employee?  @relation("DeptManager", fields: [managerId], references: [empId])
   employees Employee[]
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
