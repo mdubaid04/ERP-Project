@@ -5,7 +5,7 @@ import { ApiResponse } from "../utils/ApiResponse";
 import { prisma } from "../db/prisma";
 import { comparePassword } from "../utils/comparePassword";
 import { generatedOtp } from "../utils/otpGeneration";
-import { sendOtpEmail } from "../utils/mailer";
+import { sendOtpEmail, sendResetPasswordOtpEmail } from "../utils/mailer";
 import tempToken from "../utils/temp_token_for_OTP";
 import jwt, { type JwtPayload } from "jsonwebtoken";
 import { generateAccessToken, generateRefreshToken } from "../utils/token";
@@ -263,7 +263,7 @@ const forgetPassword = asyncHanldler(async (req: Request, res: Response) => {
       otpExpiry: otpExpiry,
     },
   });
-  await sendOtpEmail(email, otp);
+  await sendResetPasswordOtpEmail(email, otp);
   const token = tempToken(email);
   const option = {
     httpOnly: true,

@@ -4,7 +4,7 @@ import bcrypt from "bcrypt";
 async function main() {
   await prisma.employee.upsert({
     where: { email: "d0473211@gmail.com" },
-    update: { isActive: true },
+    update: {},
     create: {
       firstName: "Mohammad",
       lastName: "Ubaid",
