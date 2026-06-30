@@ -2,19 +2,15 @@ import { asyncHanldler } from "../utils/asyncHandler";
 import type { Request, Response, NextFunction } from "express";
 import { ApiError } from "../utils/ApiError";
 import { ApiResponse } from "../utils/ApiResponse";
-import type { Employee } from "../../generated/prisma/client";
 import { prisma } from "../db/prisma";
-import { comparePassword } from "../utils/comparePassword";
-import { generatedOtp } from "../utils/otpGeneration";
-import { sendOtpEmail } from "../utils/mailer";
-import tempToken from "../utils/temp_token_for_OTP";
-import jwt, { type JwtPayload } from "jsonwebtoken";
-import { generateAccessToken, generateRefreshToken } from "../utils/token";
+import { sendPasswordEmail } from "../utils/mailer";
+import temPass from "../utils/tempPassword";
 
 // Register Employee
 
 const registerEmployee = asyncHanldler(async (req: Request, res: Response) => {
-  console.log(req.body);
+  const { firstName, lastName, email, phoneNo, gender, role, dateOfBirth } =
+    req.body;
   const exsistingEmployee = await prisma.employee.findFirst({
     where: {
       OR: [
@@ -30,8 +26,22 @@ const registerEmployee = asyncHanldler(async (req: Request, res: Response) => {
   if (exsistingEmployee) {
     throw new ApiError(400, "Employee already exists");
   }
+  const tempPassword = temPass(8);
+  console.log(tempPassword);
+  await sendPasswordEmail(email, tempPassword);
   const employee = await prisma.employee.create({
-    data: { ...req.body, joiningDate: new Date(), isActive: true },
+    data: {
+      firstName,
+      lastName,
+      email,
+      phoneNo,
+      password: tempPassword,
+      gender,
+      role,
+      dateOfBirth,
+      joiningDate: new Date(),
+      isActive: true,
+    },
   });
   return res
     .status(201)

@@ -16,10 +16,8 @@ const registerSchema = z.object({
     .min(8, "password must be at least 8 characters long")
     .regex(/[A-Z]/, "password must contain at least one uppercase letter")
     .regex(/[0-9]/, "password must contain at least one digit")
-    .regex(
-      /[!@#$%^&*]/,
-      "password must contain at least one special character"
-    ),
+    .regex(/[!@#$%^&*]/, "password must contain at least one special character")
+    .optional(),
   role: z
     .enum(
       ["ADMIN", "MANAGER", "TEAM_LEADER", "EMPLOYEE"],
@@ -40,13 +38,14 @@ const registerSchema = z.object({
   state: z
     .string()
     .min(1, "state can't be empty")
-    .max(15, "state can't be more than 15 characters").optional,
+    .max(15, "state can't be more than 15 characters")
+    .optional(),
   pinCode: z
     .string()
     .min(1, "pinCode can't be empty")
     .max(15, "pinCode can't be more than 15 characters")
     .optional(),
-  dateOfBirth: z.date("dateOfBirth can't be empty"),
+  dateOfBirth: z.coerce.date("dateOfBirth can't be empty"),
   profilePic: z.string().optional(),
 });
 

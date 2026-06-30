@@ -18,6 +18,13 @@ router
     validate(createDeptSchema),
     createDepartment
   );
-router.route("/create").post(validate(registerSchema), registerEmployee);
+router
+  .route("/create-employee")
+  .post(
+    verifyJwt,
+    authorizeRole("ADMIN"),
+    validate(registerSchema),
+    registerEmployee
+  );
 
 export default router;
