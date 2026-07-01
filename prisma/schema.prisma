@@ -26,7 +26,7 @@ enum Gender {
   FEMALE
 }
 
-enum LeaveStatus {
+enum RequestStatus {
   PENDING
   APPROVED
   REJECTED
@@ -49,42 +49,51 @@ enum TaskStatus {
   COMPLETED
 }
 
+enum UpdateField {
+  PhoneNo
+  Email
+}
+
 // Employee Model
 model Employee {
-  empId            Int              @id @default(autoincrement())
-  firstName        String
-  lastName         String
-  email            String           @unique
-  profilePic       String?
-  phoneNo          String           @unique
-  dateOfBirth      DateTime?
-  password         String
-  role             Role
-  gender           Gender?
-  address          String?
-  pinCode          String?
-  city             String?
-  state            String?
-  joiningDate      DateTime?
-  isActive         Boolean?
-  departmentId     Int?
-  department       Department?      @relation(fields: [departmentId], references: [deptId])
-  managedDept      Department?      @relation("DeptManager")
-  qualification    Qualification[]
-  payroll          Payroll?
-  leaves           Leave[]
-  attendance       Attendance[]
-  payrollHistory   PayrollHistory[] @relation("employeePayroll")
-  payrollChangedBy PayrollHistory[] @relation("changedByPayroll")
-  assignedTasks    Task[]           @relation("assignedTasks")
-  assignedByTasks  Task[]           @relation("assignedByTasks")
-  totalLeaves      Int              @default(20)
-  remainingLeaves  Int              @default(20)
-  otp              String?
-  otpExpiry        DateTime?
-  refreshToken     String?
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
+  empId              Int              @id @default(autoincrement())
+  firstName          String
+  lastName           String
+  email              String           @unique
+  profilePic         String?
+  profilePicPublicId String?
+  phoneNo            String           @unique
+  dateOfBirth        DateTime?
+  password           String
+  role               Role
+  gender             Gender?
+  address            String?
+  pinCode            String?
+  city               String?
+  state              String?
+  joiningDate        DateTime?
+  isActive           Boolean?
+  departmentId       Int?
+  department         Department?      @relation(fields: [departmentId], references: [deptId])
+  managedDept        Department?      @relation("DeptManager")
+  qualification      Qualification[]
+  payroll            Payroll?
+  employeeleaves     Leave[]          @relation("EmployeeLeaves")
+  reviewedLeaves     Leave[]          @relation("ReviewerLeaves")
+  attendance         Attendance[]
+  payrollHistory     PayrollHistory[] @relation("employeePayroll")
+  payrollChangedBy   PayrollHistory[] @relation("changedByPayroll")
+  assignedTasks      Task[]           @relation("assignedTasks")
+  assignedByTasks    Task[]           @relation("assignedByTasks")
+  updateRequests     UpdateRequest[]  @relation("EmployeeRequests")
+  reviewedRequests   UpdateRequest[]  @relation("ReviewerRequests")
+  totalLeaves        Int              @default(20)
+  remainingLeaves    Int              @default(20)
+  otp                String?
+  otpExpiry          DateTime?
+  refreshToken       String?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
 }
 
 // Qualification Model
@@ -123,16 +132,20 @@ model Payroll {
 
 // Leave Model
 model Leave {
-  leaveId   Int         @id @default(autoincrement())
-  empId     Int
-  employee  Employee    @relation(fields: [empId], references: [empId])
-  startDate DateTime
-  endDate   DateTime
-  reason    String
-  status    LeaveStatus
-  leaveType LeaveType
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
+  leaveId      Int           @id @default(autoincrement())
+  empId        Int
+  employee     Employee      @relation("EmployeeLeaves", fields: [empId], references: [empId])
+  startDate    DateTime
+  endDate      DateTime
+  reason       String
+  status       RequestStatus @default(PENDING)
+  reviewedBy   Int?
+  reviewer     Employee?     @relation("ReviewerLeaves", fields: [reviewedBy], references: [empId])
+  reviewerRole Role?
+  reviewedAt   DateTime?
+  leaveType    LeaveType
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 }
 
 // Attendance Model
@@ -170,11 +183,27 @@ model Task {
   issueDate    DateTime
   submitDate   DateTime
   dueDate      DateTime
-  status       TaskStatus
+  status       TaskStatus @default(PENDING)
   assignedToId Int
   assignedTo   Employee   @relation("assignedTasks", fields: [assignedToId], references: [empId])
   assignedById Int
   assignedBy   Employee   @relation("assignedByTasks", fields: [assignedById], references: [empId])
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
+}
+
+model UpdateRequest {
+  requestId    Int           @id @default(autoincrement())
+  empId        Int
+  employee     Employee      @relation("EmployeeRequests", fields: [empId], references: [empId])
+  fieldName    UpdateField
+  oldValue     String
+  newValue     String
+  status       RequestStatus @default(PENDING)
+  reviewedBy   Int?
+  reviewer     Employee?     @relation("ReviewerRequests", fields: [reviewedBy], references: [empId])
+  reviewerRole Role?
+  reviewedAt   DateTime?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 }
