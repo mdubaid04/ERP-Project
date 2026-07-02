@@ -1,7 +1,7 @@
 import type { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { ApiError } from "../utils/ApiError";
-import { asyncHanldler } from "../utils/asyncHandler";
+import { asyncHandler } from "../utils/asyncHandler";
 import { prisma } from "../db/prisma";
 import { Role } from "../../generated/prisma/enums";
 
@@ -13,7 +13,7 @@ interface jwtPayload {
   role: Role;
 }
 
-const verifyJwt = asyncHanldler(
+const verifyJwt = asyncHandler(
   async (req: Request, res: Response, next: NextFunction) => {
     const token =
       req.cookies.accessToken ||

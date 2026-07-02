@@ -1,4 +1,4 @@
-import { asyncHanldler } from "../utils/asyncHandler";
+import { asyncHandler } from "../utils/asyncHandler";
 import type { Request, Response } from "express";
 import { ApiError } from "../utils/ApiError";
 import { ApiResponse } from "../utils/ApiResponse";
@@ -8,7 +8,7 @@ import { comparePassword } from "../utils/comparePassword";
 
 // Get Employee
 
-const getEmployee = asyncHanldler(async (req: Request, res: Response) => {
+const getEmployee = asyncHandler(async (req: Request, res: Response) => {
   const { empId } = req.user;
   const employee = await prisma.employee.findUnique({
     where: {
@@ -31,7 +31,7 @@ const getEmployee = asyncHanldler(async (req: Request, res: Response) => {
 
 // Update Employee Profile Itself
 
-const updateProfileItself = asyncHanldler(
+const updateProfileItself = asyncHandler(
   async (req: Request, res: Response) => {
     const { empId } = req.user;
     const { firstName, lastName, address, city, state, pinCode } = req.body;
@@ -85,7 +85,7 @@ const updateProfileItself = asyncHanldler(
 
 // updateProfile
 
-const updateProfilePic = asyncHanldler(async (req: Request, res: Response) => {
+const updateProfilePic = asyncHandler(async (req: Request, res: Response) => {
   const { empId } = req.user;
   const existingEmployee = await prisma.employee.findUnique({
     where: {
@@ -130,7 +130,7 @@ const updateProfilePic = asyncHanldler(async (req: Request, res: Response) => {
 
 // updatePassword
 
-const updatePassword = asyncHanldler(async (req: Request, res: Response) => {
+const updatePassword = asyncHandler(async (req: Request, res: Response) => {
   const { empId } = req.user;
   const { oldPassword, newPassword } = req.body;
   const existingEmployee = await prisma.employee.findUnique({
@@ -171,7 +171,7 @@ const updatePassword = asyncHanldler(async (req: Request, res: Response) => {
 
 // UpdateDetails through Admin by Request
 
-const createUpdateRequest = asyncHanldler(
+const createUpdateRequest = asyncHandler(
   async (req: Request, res: Response) => {
     const { empId } = req.user;
     const { fieldName, newValue } = req.body;
@@ -221,7 +221,7 @@ const createUpdateRequest = asyncHanldler(
 
 // Leave Request
 
-const leaveRequest = asyncHanldler(async (req: Request, res: Response) => {
+const leaveRequest = asyncHandler(async (req: Request, res: Response) => {
   const { empId } = req.user;
   const { startDate, endDate, reason, leaveType } = req.body;
   const employee = await prisma.employee.findUnique({
@@ -270,7 +270,7 @@ const leaveRequest = asyncHanldler(async (req: Request, res: Response) => {
 
 // get my leaves
 
-const getMyLeaves = asyncHanldler(async (req: Request, res: Response) => {
+const getMyLeaves = asyncHandler(async (req: Request, res: Response) => {
   const { empId } = req.user;
   const leaves = await prisma.leave.findMany({
     where: {
@@ -288,38 +288,36 @@ const getMyLeaves = asyncHanldler(async (req: Request, res: Response) => {
 
 // cancel leave request
 
-const cancelLeaveRequest = asyncHanldler(
-  async (req: Request, res: Response) => {
-    const { empId } = req.user;
-    const { leaveId } = req.params;
-    const leaveRequest = await prisma.leave.findUnique({
-      where: {
-        leaveId: Number(leaveId),
-      },
-    });
-    if (!leaveRequest) {
-      throw new ApiError(404, "Leave Request Not Found");
-    }
-    if (leaveRequest.status !== "PENDING") {
-      throw new ApiError(400, "Only pending leave requests can be cancelled");
-    }
-    if (leaveRequest.empId !== empId) {
-      throw new ApiError(403, "You are not authorized to cancel this leave");
-    }
-    await prisma.leave.delete({
-      where: {
-        leaveId: Number(leaveId),
-      },
-    });
-    return res
-      .status(200)
-      .json(new ApiResponse(200, "Leave Request Cancelled Successfully", {}));
+const cancelLeaveRequest = asyncHandler(async (req: Request, res: Response) => {
+  const { empId } = req.user;
+  const { leaveId } = req.params;
+  const leaveRequest = await prisma.leave.findUnique({
+    where: {
+      leaveId: Number(leaveId),
+    },
+  });
+  if (!leaveRequest) {
+    throw new ApiError(404, "Leave Request Not Found");
   }
-);
+  if (leaveRequest.status !== "PENDING") {
+    throw new ApiError(400, "Only pending leave requests can be cancelled");
+  }
+  if (leaveRequest.empId !== empId) {
+    throw new ApiError(403, "You are not authorized to cancel this leave");
+  }
+  await prisma.leave.delete({
+    where: {
+      leaveId: Number(leaveId),
+    },
+  });
+  return res
+    .status(200)
+    .json(new ApiResponse(200, "Leave Request Cancelled Successfully", {}));
+});
 
 // get myUpdateRequests
 
-const getMyUpdateRequests = asyncHanldler(
+const getMyUpdateRequests = asyncHandler(
   async (req: Request, res: Response) => {
     const { empId } = req.user;
     const updateRequests = await prisma.updateRequest.findMany({

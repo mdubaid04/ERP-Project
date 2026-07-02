@@ -1,4 +1,4 @@
-import { asyncHanldler } from "../utils/asyncHandler";
+import { asyncHandler } from "../utils/asyncHandler";
 import type { Request, Response } from "express";
 import { ApiError } from "../utils/ApiError";
 import { ApiResponse } from "../utils/ApiResponse";
@@ -12,7 +12,7 @@ import { generateAccessToken, generateRefreshToken } from "../utils/token";
 
 // Login Controller
 
-const loginEmployee = asyncHanldler(async (req: Request, res: Response) => {
+const loginEmployee = asyncHandler(async (req: Request, res: Response) => {
   try {
     const employee = await prisma.employee.findFirst({
       where: {
@@ -75,7 +75,7 @@ const loginEmployee = asyncHanldler(async (req: Request, res: Response) => {
 
 // OTP Verification
 
-const verifyOTP = asyncHanldler(async (req: Request, res: Response) => {
+const verifyOTP = asyncHandler(async (req: Request, res: Response) => {
   try {
     const token = req.cookies.tempToken;
     console.log("----token--------", token);
@@ -169,7 +169,7 @@ const verifyOTP = asyncHanldler(async (req: Request, res: Response) => {
 
 // logOut Controller
 
-const logout = asyncHanldler(async (req: Request, res: Response) => {
+const logout = asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) {
     throw new ApiError(401, "User Not Logged In");
   }
@@ -196,46 +196,44 @@ const logout = asyncHanldler(async (req: Request, res: Response) => {
 });
 
 // refreshAccess Token Controller
-const refreshAccessToken = asyncHanldler(
-  async (req: Request, res: Response) => {
-    const refreshToken = req.cookies.refreshToken;
-    if (!refreshToken) {
-      throw new ApiError(404, "Refresh Token Not Found");
-    }
-    const employee = await prisma.employee.findUnique({
-      where: {
-        empId: req.user.empId,
-      },
-    });
-    if (!employee) {
-      throw new ApiError(404, "Employee Not Found");
-    }
-
-    if (employee?.refreshToken !== refreshToken) {
-      throw new ApiError(401, "Refresh Token Not Valid Or Expired");
-    }
-    const newAccessToken = generateAccessToken(
-      employee.empId,
-      employee.firstName,
-      employee.lastName,
-      employee.email,
-      employee.role
-    );
-    const accessOption = {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      maxAge: 24 * 60 * 60 * 1000,
-    };
-    return res
-      .status(200)
-      .cookie("accessToken", newAccessToken, accessOption)
-      .json(new ApiResponse(200, "Access Token Refreshed Successfully", {}));
+const refreshAccessToken = asyncHandler(async (req: Request, res: Response) => {
+  const refreshToken = req.cookies.refreshToken;
+  if (!refreshToken) {
+    throw new ApiError(404, "Refresh Token Not Found");
   }
-);
+  const employee = await prisma.employee.findUnique({
+    where: {
+      empId: req.user.empId,
+    },
+  });
+  if (!employee) {
+    throw new ApiError(404, "Employee Not Found");
+  }
+
+  if (employee?.refreshToken !== refreshToken) {
+    throw new ApiError(401, "Refresh Token Not Valid Or Expired");
+  }
+  const newAccessToken = generateAccessToken(
+    employee.empId,
+    employee.firstName,
+    employee.lastName,
+    employee.email,
+    employee.role
+  );
+  const accessOption = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    maxAge: 24 * 60 * 60 * 1000,
+  };
+  return res
+    .status(200)
+    .cookie("accessToken", newAccessToken, accessOption)
+    .json(new ApiResponse(200, "Access Token Refreshed Successfully", {}));
+});
 
 // Forgot Password
 
-const forgetPassword = asyncHanldler(async (req: Request, res: Response) => {
+const forgetPassword = asyncHandler(async (req: Request, res: Response) => {
   const { email, phoneNo } = req.body;
   const exsistingEmployee = await prisma.employee.findFirst({
     where: {
@@ -277,7 +275,7 @@ const forgetPassword = asyncHanldler(async (req: Request, res: Response) => {
 });
 
 // Reset Password
-const resetPassword = asyncHanldler(async (req: Request, res: Response) => {
+const resetPassword = asyncHandler(async (req: Request, res: Response) => {
   interface Jwtpayload {
     email: string;
   }
