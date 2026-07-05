@@ -8,7 +8,7 @@ import { comparePassword } from "../utils/comparePassword";
 
 // Get Employee
 
-const getEmployee = asyncHandler(async (req: Request, res: Response) => {
+const getEmployeeProfile = asyncHandler(async (req: Request, res: Response) => {
   const { empId } = req.user;
   const employee = await prisma.employee.findUnique({
     where: {
@@ -757,7 +757,7 @@ const deleteQualification = asyncHandler(
 );
 
 export {
-  getEmployee,
+  getEmployeeProfile,
   updateProfileItself,
   updateProfilePic,
   updatePassword,

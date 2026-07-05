@@ -3,7 +3,7 @@ import { validate } from "../middlewares/validate.middleware";
 import {
   cancelLeaveRequest,
   createUpdateRequest,
-  getEmployee,
+  getEmployeeProfile,
   getMyLeaves,
   getMyUpdateRequests,
   leaveRequest,
@@ -36,7 +36,7 @@ import {
 import { updateTaskStatusSchema } from "../validators/task.validator";
 
 const router = Router();
-router.route("/").get(verifyJwt, getEmployee);
+router.route("/").get(verifyJwt, getEmployeeProfile);
 
 router
   .route("/update-details")
