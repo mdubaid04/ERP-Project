@@ -99,6 +99,7 @@ const updateProfilePic = asyncHandler(async (req: Request, res: Response) => {
     throw new ApiError(404, "Employee Not Found");
   }
   const localProfilePicPath = req.file?.path;
+  console.log("localProfilePicPath", localProfilePicPath);
   if (!localProfilePicPath) {
     throw new ApiError(404, "Profile Pic Not Found");
   }
@@ -113,6 +114,7 @@ const updateProfilePic = asyncHandler(async (req: Request, res: Response) => {
     },
     data: {
       profilePic: profilePic,
+      profilePicPublicId: cloudinaryPath.public_id!,
     },
   });
   if (existingEmployee?.profilePic) {
@@ -713,6 +715,9 @@ const getAllQualifications = asyncHandler(
     const qualifications = await prisma.qualification.findMany({
       where: {
         empId: empId,
+      },
+      orderBy: {
+        createdAt: "desc",
       },
     });
     return res

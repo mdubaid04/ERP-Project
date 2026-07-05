@@ -51,8 +51,8 @@ enum TaskStatus {
 }
 
 enum UpdateField {
-  PhoneNo
-  Email
+  PHONENO
+  EMAIL
 }
 
 // Employee Model

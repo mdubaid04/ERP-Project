@@ -158,6 +158,8 @@ const verifyOTP = asyncHandler(async (req: Request, res: Response) => {
     }
     return res
       .status(200)
+      .cookie("accessToken", accessToken, accessOption)
+      .cookie("refreshToken", refreshToken, refreshOption)
       .json(new ApiResponse(200, "OTP Verified Successfully", updatedEmployee));
   } catch (error) {
     console.error("OTP Verification Error :", error);

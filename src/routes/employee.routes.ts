@@ -34,15 +34,20 @@ import {
   updateSchema,
 } from "../validators/employee.validator";
 import { updateTaskStatusSchema } from "../validators/task.validator";
+import multer from "multer";
+import { upload } from "../middlewares/multer.middleware";
 
 const router = Router();
+
 router.route("/").get(verifyJwt, getEmployeeProfile);
 
 router
   .route("/update-details")
   .patch(verifyJwt, validate(updateSchema), updateProfileItself);
 
-router.route("/update-profile-pic").patch(verifyJwt, updateProfilePic);
+router
+  .route("/update-profile-pic")
+  .patch(verifyJwt, upload.single("profilePic"), updateProfilePic);
 
 router
   .route("/update-password")
@@ -66,11 +71,11 @@ router.route("/update-requests").get(verifyJwt, getMyUpdateRequests);
 
 router.route("/tasks").get(verifyJwt, getMyTasks);
 
-router.route("/tasks/:taskId").get(verifyJwt, getTaskById);
+router.route("/task/:taskId").get(verifyJwt, getTaskById);
 
 router
   .route("/update-task-status/:taskId")
-  .post(verifyJwt, validate(updateTaskStatusSchema), updateTaskStatus);
+  .patch(verifyJwt, validate(updateTaskStatusSchema), updateTaskStatus);
 
 router.route("/payroll/:payrollId").get(verifyJwt, getPayrollById);
 
@@ -78,7 +83,7 @@ router.route("/payrolls").get(verifyJwt, getAllPayrolls);
 
 router.route("/attendances").get(verifyJwt, getMyAttendances);
 
-router.route("/attendances/:attendanceId").get(verifyJwt, getMyAttendanceById);
+router.route("/attendance/:attendanceId").get(verifyJwt, getMyAttendanceById);
 
 router.route("/mark-attendance").post(verifyJwt, markAttendance);
 
@@ -87,9 +92,10 @@ router.route("/mark-checkout").post(verifyJwt, markCheckout);
 router
   .route("/create-qualification")
   .post(verifyJwt, validate(createQualificationSchema), createQualification);
+router.route("/qualifications").get(verifyJwt, getAllQualifications);
 router
-  .route("/update-qualifications")
-  .get(verifyJwt, validate(updateQualificationSchema), updateQualification);
+  .route("/update-qualification/:qualId")
+  .patch(verifyJwt, validate(updateQualificationSchema), updateQualification);
 router.route("/qualifications").get(verifyJwt, getAllQualifications);
 router
   .route("/delete-qualification/:qualId")

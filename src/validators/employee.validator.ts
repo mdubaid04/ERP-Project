@@ -97,11 +97,11 @@ const updatePasswordSchema = z.object({
 
 const createUpdateRequestSchema = z
   .object({
-    fieldName: z.enum(["Email", "phoneNo"], "fieldName can't be empty"),
+    fieldName: z.enum(["EMAIL", "PHONENO"], "fieldName can't be empty"),
     newValue: z.string().min(1, "newValue can't be empty"),
   })
   .superRefine((data, ctx) => {
-    if (data.fieldName === "Email") {
+    if (data.fieldName === "EMAIL") {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(data.newValue)) {
         ctx.addIssue({
@@ -110,7 +110,7 @@ const createUpdateRequestSchema = z
           path: ["newValue"],
         });
       }
-    } else if (data.fieldName === "phoneNo") {
+    } else if (data.fieldName === "PHONENO") {
       const phoneNoRegex = /^\+?[1-9]\d{1,14}$/;
       if (!phoneNoRegex.test(data.newValue)) {
         ctx.addIssue({
@@ -137,7 +137,7 @@ const createQualificationSchema = z.object({
   university: z
     .string()
     .min(1, "university can't be empty")
-    .max(30, "university can't be more than 30 characters"),
+    .max(60, "university can't be more than 60 characters"),
   passingYear: z.number("passingYear can't be empty"),
   grade: z.string().min(1, "grade can't be empty"),
 });
@@ -151,7 +151,7 @@ const updateQualificationSchema = z.object({
   university: z
     .string()
     .min(1, "university can't be empty")
-    .max(30, "university can't be more than 30 characters")
+    .max(60, "university can't be more than 60 characters")
     .optional(),
   passingYear: z.number("passingYear can't be empty").optional(),
   grade: z.string().min(1, "grade can't be empty").optional(),

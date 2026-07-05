@@ -2,10 +2,17 @@ import { v2 as cloudinary } from "cloudinary";
 import type { UploadApiResponse } from "cloudinary";
 import fs from "fs";
 
+cloudinary.config({
+  cloud_name: process.env.CLOUD_NAME!,
+  api_key: process.env.API_KEY!,
+  api_secret: process.env.API_SECRET!,
+});
+
 const uploadOnCloudinary = async (
   fileLocalPath: string
 ): Promise<UploadApiResponse | null> => {
   if (!fileLocalPath || fileLocalPath.trim() === "") return null;
+
   try {
     const result: UploadApiResponse = await cloudinary.uploader.upload(
       fileLocalPath,
