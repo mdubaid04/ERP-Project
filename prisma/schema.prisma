@@ -42,6 +42,7 @@ enum AttendanceStatus {
   PRESENT
   ABSENT
   HALF_DAY
+  LATE
 }
 
 enum TaskStatus {
@@ -103,7 +104,8 @@ model Qualification {
   employee    Employee @relation(fields: [empId], references: [empId])
   degree      String
   university  String
-  passingYear DateTime
+  passingYear Int
+  grade       String
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
@@ -156,7 +158,7 @@ model Attendance {
   date         DateTime
   status       AttendanceStatus
   checkIn      DateTime
-  checkOut     DateTime
+  checkOut     DateTime?
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
 }

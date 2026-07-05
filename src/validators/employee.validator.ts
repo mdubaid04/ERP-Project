@@ -129,10 +129,40 @@ const leaveRequestSchema = z.object({
   leaveType: z.enum(["SICK", "CASUAL", "UNPAID"], "leaveType can't be empty"),
 });
 
+const createQualificationSchema = z.object({
+  degree: z
+    .string()
+    .min(1, "degree can't be empty")
+    .max(30, "degree can't be more than 30 characters"),
+  university: z
+    .string()
+    .min(1, "university can't be empty")
+    .max(30, "university can't be more than 30 characters"),
+  passingYear: z.number("passingYear can't be empty"),
+  grade: z.string().min(1, "grade can't be empty"),
+});
+
+const updateQualificationSchema = z.object({
+  degree: z
+    .string()
+    .min(1, "degree can't be empty")
+    .max(30, "degree can't be more than 30 characters")
+    .optional(),
+  university: z
+    .string()
+    .min(1, "university can't be empty")
+    .max(30, "university can't be more than 30 characters")
+    .optional(),
+  passingYear: z.number("passingYear can't be empty").optional(),
+  grade: z.string().min(1, "grade can't be empty").optional(),
+});
+
 export {
   registerSchema,
   updateSchema,
   updatePasswordSchema,
   createUpdateRequestSchema,
   leaveRequestSchema,
+  createQualificationSchema,
+  updateQualificationSchema,
 };
