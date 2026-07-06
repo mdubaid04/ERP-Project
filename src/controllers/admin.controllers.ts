@@ -170,10 +170,97 @@ const getDepartmentById = asyncHandler(async (req: Request, res: Response) => {
     .json(new ApiResponse(200, "Department fetched successfully", department));
 });
 
+// get all update requests
+
+const getAllUpdateRequests = asyncHandler(
+  async (req: Request, res: Response) => {
+    const pageNo = Math.max(1, Number(req.query.pageNo) || 1);
+    const limit = Math.max(1, Number(req.query.limit) || 10);
+    const skip = (pageNo - 1) * limit;
+    const sortOrderQuery = req.query.sortOrder as string;
+    const sortOrder: "asc" | "desc" =
+      sortOrderQuery === "desc" ? "desc" : "asc";
+    const [allUpdateRequests, totalCount] = await prisma.$transaction([
+      prisma.updateRequest.findMany({
+        skip: skip,
+        take: limit,
+        orderBy: {
+          createdAt: sortOrder,
+        },
+      }),
+      prisma.updateRequest.count(),
+    ]);
+    return res.status(200).json(
+      new ApiResponse(200, "Update Requests Fetched Successfully", {
+        updateRequests: allUpdateRequests,
+        pagination: {
+          currentPage: pageNo,
+          totalPages: Math.ceil(totalCount / limit),
+          totalItems: totalCount,
+        },
+      })
+    );
+  }
+);
+
+// execute update request
+const processUpdateRequest = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { action } = req.body;
+    const { updateRequestId } = req.params;
+    const updateRequest = await prisma.updateRequest.findUnique({
+      where: {
+        requestId: Number(updateRequestId),
+      },
+    });
+    if (!updateRequest) {
+      throw new ApiError(404, "Update Request Not Found");
+    }
+    if (updateRequest.status !== "PENDING") {
+      throw new ApiError(400, "Update Request Already Processed");
+    }
+    if (action === "APPROVED") {
+      await prisma.$transaction([
+        prisma.employee.update({
+          where: {
+            empId: updateRequest.empId,
+          },
+          data: {
+            [updateRequest.fieldName]: updateRequest.newValue,
+          },
+        }),
+        prisma.updateRequest.update({
+          where: {
+            requestId: Number(updateRequestId),
+          },
+          data: {
+            status: "APPROVED",
+          },
+        }),
+      ]);
+    } else if (action === "REJECTED") {
+      await prisma.updateRequest.update({
+        where: {
+          requestId: Number(updateRequestId),
+        },
+        data: {
+          status: "REJECTED",
+        },
+      });
+    }
+
+    return res
+      .status(200)
+      .json(new ApiResponse(200, `Update Request ${action.toLowerCase()}`, {}));
+  }
+);
+
 export {
   registerEmployee,
   createDepartment,
   updateDepartment,
   getAllDepartments,
   getDepartmentById,
+  getAllUpdateRequests,
+  processUpdateRequest,
 };
