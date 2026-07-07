@@ -49,6 +49,51 @@ const registerEmployee = asyncHandler(async (req: Request, res: Response) => {
     .json(new ApiResponse(201, "Employee registered successfully", employee));
 });
 
+//get All Employees
+
+const getAllEmployees = asyncHandler(async (req: Request, res: Response) => {
+  const pageNo = Math.max(1, Number(req.query.pageNo) || 1);
+  const limit = Math.max(1, Number(req.query.limit) || 10);
+  const skip = (pageNo - 1) * limit;
+  const sortOrderQuery = req.query.sortOrder as string;
+  const sortOrder: "asc" | "desc" = sortOrderQuery === "desc" ? "desc" : "asc";
+
+  const employees = await prisma.employee.findMany({
+    skip: skip,
+    take: limit,
+    orderBy: {
+      createdAt: sortOrder,
+    },
+  });
+  return res.status(200).json(
+    new ApiResponse(200, "Employees found successfully", {
+      employees,
+      pagination: {
+        currentPage: pageNo,
+        totalPages: Math.ceil(employees.length / limit),
+        totalItems: employees.length,
+      },
+    })
+  );
+});
+
+// get employee by id
+
+const getEmployeeById = asyncHandler(async (req: Request, res: Response) => {
+  const { empId } = req.params;
+  const employee = await prisma.employee.findUnique({
+    where: {
+      empId: Number(empId),
+    },
+  });
+  if (!employee) {
+    throw new ApiError(404, "Employee Not Found");
+  }
+  return res
+    .status(200)
+    .json(new ApiResponse(200, "Employee found successfully", employee));
+});
+
 // Create Department
 
 const createDepartment = asyncHandler(async (req: Request, res: Response) => {
@@ -313,6 +358,9 @@ const processUpdateRequest = asyncHandler(
 
 export {
   registerEmployee,
+  getAllEmployees,
+  getEmployeeById,
+  getUpdateRequestById,
   createDepartment,
   updateDepartment,
   getAllDepartments,
