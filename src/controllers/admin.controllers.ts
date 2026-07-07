@@ -6,6 +6,9 @@ import { prisma } from "../db/prisma";
 import { sendPasswordEmail } from "../utils/mailer";
 import temPass from "../utils/tempPassword";
 import { SortOrder } from "../../generated/prisma/internal/prismaNamespace";
+import type { Role } from "../../generated/prisma/enums";
+
+//?                                           EMPLOYEES CONTROLLER
 
 // Register Employee
 
@@ -58,20 +61,30 @@ const getAllEmployees = asyncHandler(async (req: Request, res: Response) => {
   const sortOrderQuery = req.query.sortOrder as string;
   const sortOrder: "asc" | "desc" = sortOrderQuery === "desc" ? "desc" : "asc";
 
-  const employees = await prisma.employee.findMany({
-    skip: skip,
-    take: limit,
-    orderBy: {
-      createdAt: sortOrder,
-    },
-  });
+  const [employees, totalCount] = await prisma.$transaction([
+    prisma.employee.findMany({
+      where: {
+        isActive: true,
+      },
+      skip: skip,
+      take: limit,
+      orderBy: {
+        createdAt: sortOrder,
+      },
+    }),
+    prisma.employee.count({
+      where: {
+        isActive: true,
+      },
+    }),
+  ]);
   return res.status(200).json(
     new ApiResponse(200, "Employees found successfully", {
       employees,
       pagination: {
         currentPage: pageNo,
-        totalPages: Math.ceil(employees.length / limit),
-        totalItems: employees.length,
+        totalPages: Math.ceil(totalCount / limit),
+        totalItems: totalCount,
       },
     })
   );
@@ -81,6 +94,9 @@ const getAllEmployees = asyncHandler(async (req: Request, res: Response) => {
 
 const getEmployeeById = asyncHandler(async (req: Request, res: Response) => {
   const { empId } = req.params;
+  if (isNaN(Number(empId))) {
+    throw new ApiError(400, "Invalid Employee Id");
+  }
   const employee = await prisma.employee.findUnique({
     where: {
       empId: Number(empId),
@@ -93,6 +109,208 @@ const getEmployeeById = asyncHandler(async (req: Request, res: Response) => {
     .status(200)
     .json(new ApiResponse(200, "Employee found successfully", employee));
 });
+
+// get employee by department
+
+const getEmployeeByDeptId = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { deptId } = req.params;
+    const pageNo = Math.max(1, Number(req.query.pageNo) || 1);
+    const limit = Math.max(1, Number(req.query.limit) || 10);
+    const skip = (pageNo - 1) * limit;
+    const sortOrderQuery = req.query.sortOrder as string;
+    const sortOrder: "asc" | "desc" =
+      sortOrderQuery === "desc" ? "desc" : "asc";
+    const [employees, totalCount] = await prisma.$transaction([
+      prisma.employee.findMany({
+        where: {
+          departmentId: Number(deptId),
+        },
+        skip: skip,
+        take: limit,
+        orderBy: {
+          createdAt: sortOrder,
+        },
+      }),
+      prisma.employee.count({
+        where: {
+          departmentId: Number(deptId),
+        },
+      }),
+    ]);
+    return res.status(200).json(
+      new ApiResponse(200, "Employees found successfully", {
+        employees,
+        pagination: {
+          currentPage: pageNo,
+          totalPages: Math.ceil(totalCount / limit),
+          totalItems: totalCount,
+        },
+      })
+    );
+  }
+);
+
+// get employee by role
+
+const getEmployeeByRole = asyncHandler(async (req: Request, res: Response) => {
+  const role = req.query.role as Role;
+  const pageNo = Math.max(1, Number(req.query.pageNo) || 1);
+  const limit = Math.max(1, Number(req.query.limit) || 10);
+  const skip = (pageNo - 1) * limit;
+  const sortOrderQuery = req.query.sortOrder as string;
+  const sortOrder: "asc" | "desc" = sortOrderQuery === "desc" ? "desc" : "asc";
+  const [employees, totalCount] = await prisma.$transaction([
+    prisma.employee.findMany({
+      where: {
+        role: role,
+      },
+      skip: skip,
+      take: limit,
+      orderBy: {
+        createdAt: sortOrder,
+      },
+    }),
+    prisma.employee.count({
+      where: {
+        role: role,
+      },
+    }),
+  ]);
+
+  return res.status(200).json(
+    new ApiResponse(200, "Employees found", {
+      employees,
+      pagination: {
+        currentPage: pageNo,
+        totalPages: Math.ceil(totalCount / limit),
+        totalItems: totalCount,
+      },
+    })
+  );
+});
+
+// get UnActiive Employee
+
+const getUnActiveEmployee = asyncHandler(
+  async (req: Request, res: Response) => {
+    const pageNo = Math.max(1, Number(req.query.pageNo) || 1);
+    const limit = Math.max(1, Number(req.query.limit) || 10);
+    const skip = (pageNo - 1) * limit;
+    const sortOrderQuery = req.query.sortOrder as string;
+    const sortOrder: "asc" | "desc" =
+      sortOrderQuery === "desc" ? "desc" : "asc";
+    const [employees, totalCount] = await prisma.$transaction([
+      prisma.employee.findMany({
+        where: {
+          isActive: false,
+        },
+        skip: skip,
+        take: limit,
+        orderBy: {
+          createdAt: sortOrder,
+        },
+      }),
+      prisma.employee.count({
+        where: {
+          isActive: false,
+        },
+      }),
+    ]);
+
+    return res.status(200).json(
+      new ApiResponse(200, "Employees found", {
+        employees,
+        pagination: {
+          currentPage: pageNo,
+          totalPages: Math.ceil(totalCount / limit),
+          totalItems: totalCount,
+        },
+      })
+    );
+  }
+);
+
+// deactivate Employee
+
+const deactivateEmployee = asyncHandler(async (req: Request, res: Response) => {
+  const { empId } = req.params;
+  if (isNaN(Number(empId))) {
+    throw new ApiError(400, "Invalid Employee Id");
+  }
+  const employee = await prisma.employee.update({
+    where: {
+      empId: Number(empId),
+    },
+    data: {
+      isActive: false,
+    },
+  });
+  return res
+    .status(200)
+    .json(new ApiResponse(200, "Employee inActive successfully", employee));
+});
+
+// activate Employee
+
+const activateEmployee = asyncHandler(async (req: Request, res: Response) => {
+  const { empId } = req.params;
+  if (isNaN(Number(empId))) {
+    throw new ApiError(400, "Invalid Employee Id");
+  }
+  const employee = await prisma.employee.update({
+    where: {
+      empId: Number(empId),
+    },
+    data: {
+      isActive: true,
+    },
+  });
+  return res
+    .status(200)
+    .json(new ApiResponse(200, "Employee Active successfully", employee));
+});
+
+// promote Employee
+
+const promoteEmployee = asyncHandler(async (req: Request, res: Response) => {
+  const { empId } = req.params;
+  const { role } = req.body as { role: Role };
+  if (isNaN(Number(empId))) {
+    throw new ApiError(400, "Invalid Employee Id");
+  }
+  const roleHierarchy = {
+    EMPLOYEE: 1,
+    MANAGER: 2,
+    TEAM_LEADER: 3,
+    ADMIN: 4,
+  };
+  const existingEmployee = await prisma.employee.findUnique({
+    where: {
+      empId: Number(empId),
+    },
+  });
+  if (!existingEmployee) {
+    throw new ApiError(404, "Employee Not Found");
+  }
+  if (roleHierarchy[role] <= roleHierarchy[existingEmployee.role]) {
+    throw new ApiError(400, "Ner Rule Must Be Higher than Current Role");
+  }
+
+  const employee = await prisma.employee.update({
+    where: {
+      empId: Number(empId),
+    },
+    data: {
+      role: role,
+    },
+  });
+  return res
+    .status(200)
+    .json(new ApiResponse(200, "Employee Promoted successfully", employee));
+});
+
+//?                                                               DEPARTMENT CONTROLLERS
 
 // Create Department
 
@@ -214,6 +432,8 @@ const getDepartmentById = asyncHandler(async (req: Request, res: Response) => {
     .status(200)
     .json(new ApiResponse(200, "Department fetched successfully", department));
 });
+
+//?                                                               UPDATE REQUEST CONTROLLERS
 
 // get all update requests
 
@@ -360,6 +580,12 @@ export {
   registerEmployee,
   getAllEmployees,
   getEmployeeById,
+  getEmployeeByDeptId,
+  getEmployeeByRole,
+  getUnActiveEmployee,
+  promoteEmployee,
+  deactivateEmployee,
+  activateEmployee,
   getUpdateRequestById,
   createDepartment,
   updateDepartment,
