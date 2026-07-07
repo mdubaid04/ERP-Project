@@ -195,17 +195,19 @@ model Task {
 }
 
 model UpdateRequest {
-  requestId    Int           @id @default(autoincrement())
-  empId        Int
-  employee     Employee      @relation("EmployeeRequests", fields: [empId], references: [empId])
-  fieldName    UpdateField
-  oldValue     String
-  newValue     String
-  status       RequestStatus @default(PENDING)
-  reviewedBy   Int?
-  reviewer     Employee?     @relation("ReviewerRequests", fields: [reviewedBy], references: [empId])
-  reviewerRole Role?
-  reviewedAt   DateTime?
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  requestId     Int           @id @default(autoincrement())
+  empId         Int
+  employee      Employee      @relation("EmployeeRequests", fields: [empId], references: [empId])
+  fieldName     UpdateField
+  oldValue      String
+  newValue      String
+  status        RequestStatus @default(PENDING)
+  reviewedBy    Int?
+  reviewer      Employee?     @relation("ReviewerRequests", fields: [reviewedBy], references: [empId])
+  reviewerRole  Role?
+  requestReason String?
+  rejectReason  String?
+  reviewedAt    DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
 }

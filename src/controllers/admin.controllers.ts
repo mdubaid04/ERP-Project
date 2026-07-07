@@ -182,6 +182,17 @@ const getAllUpdateRequests = asyncHandler(
       sortOrderQuery === "desc" ? "desc" : "asc";
     const [allUpdateRequests, totalCount] = await prisma.$transaction([
       prisma.updateRequest.findMany({
+        include: {
+          employee: {
+            select: {
+              empId: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              role: true,
+            },
+          },
+        },
         skip: skip,
         take: limit,
         orderBy: {
@@ -203,10 +214,51 @@ const getAllUpdateRequests = asyncHandler(
   }
 );
 
+// get UpdateRequestById
+
+const getUpdateRequestById = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { updateRequestId } = req.params;
+    const updateRequestIdNum = Number(updateRequestId);
+    if (isNaN(updateRequestIdNum)) {
+      throw new ApiError(400, "Invalid Update Request ID");
+    }
+    const updateRequest = await prisma.updateRequest.findUnique({
+      where: {
+        requestId: updateRequestIdNum,
+      },
+      include: {
+        employee: {
+          select: {
+            empId: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            role: true,
+          },
+        },
+      },
+    });
+    if (!updateRequest) {
+      throw new ApiError(404, "Update Request Not Found");
+    }
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(
+          200,
+          "Update Request Fetched Successfully",
+          updateRequest
+        )
+      );
+  }
+);
+
 // execute update request
 const processUpdateRequest = asyncHandler(
   async (req: Request, res: Response) => {
-    const { action } = req.body;
+    const { empId } = req.user;
+    const { action, rejectReason } = req.body;
     const { updateRequestId } = req.params;
     const updateRequest = await prisma.updateRequest.findUnique({
       where: {
@@ -245,6 +297,10 @@ const processUpdateRequest = asyncHandler(
         },
         data: {
           status: "REJECTED",
+          rejectReason: rejectReason,
+          reviewedBy: empId,
+          reviewerRole: "ADMIN",
+          reviewedAt: new Date(),
         },
       });
     }

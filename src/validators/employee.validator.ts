@@ -99,6 +99,7 @@ const createUpdateRequestSchema = z
   .object({
     fieldName: z.enum(["EMAIL", "PHONENO"], "fieldName can't be empty"),
     newValue: z.string().min(1, "newValue can't be empty"),
+    requestReason: z.string().min(1, "requestReason can't be empty").optional(),
   })
   .superRefine((data, ctx) => {
     if (data.fieldName === "EMAIL") {

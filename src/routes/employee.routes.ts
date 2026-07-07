@@ -23,6 +23,7 @@ import {
   updateQualification,
   getAllQualifications,
   deleteQualification,
+  getUpdateRequestById,
 } from "../controllers/employee.controllers";
 import { verifyJwt } from "../middlewares/auth.middleware";
 import {
@@ -36,6 +37,7 @@ import {
 import { updateTaskStatusSchema } from "../validators/task.validator";
 import multer from "multer";
 import { upload } from "../middlewares/multer.middleware";
+import { get } from "node:http";
 
 const router = Router();
 
@@ -68,6 +70,10 @@ router
   .post(verifyJwt, cancelLeaveRequest);
 
 router.route("/update-requests").get(verifyJwt, getMyUpdateRequests);
+
+router
+  .route("/update-request/:updateRequestId")
+  .get(verifyJwt, getUpdateRequestById);
 
 router.route("/tasks").get(verifyJwt, getMyTasks);
 

@@ -5,6 +5,7 @@ import { ApiResponse } from "../utils/ApiResponse";
 import { prisma } from "../db/prisma";
 import { uploadOnCloudinary, deleteFromCloudinary } from "../utils/cloudinary";
 import { comparePassword } from "../utils/comparePassword";
+import { get } from "node:http";
 
 // Get Employee
 
@@ -179,7 +180,7 @@ const updatePassword = asyncHandler(async (req: Request, res: Response) => {
 const createUpdateRequest = asyncHandler(
   async (req: Request, res: Response) => {
     const { empId } = req.user;
-    const { fieldName, newValue } = req.body;
+    const { fieldName, newValue, requestReason } = req.body;
     const existingEmployee = await prisma.employee.findUnique({
       where: {
         empId: empId,
@@ -209,6 +210,7 @@ const createUpdateRequest = asyncHandler(
         fieldName: fieldName,
         oldValue: oldValue,
         newValue: newValue,
+        requestReason: requestReason || "",
         status: "PENDING",
       },
     });
@@ -329,6 +331,7 @@ const getMyUpdateRequests = asyncHandler(
       where: {
         empId: empId,
       },
+
       orderBy: {
         createdAt: "desc",
       },
@@ -340,6 +343,46 @@ const getMyUpdateRequests = asyncHandler(
           200,
           "Update Requests Fetched Successfully",
           updateRequests
+        )
+      );
+  }
+);
+
+// getUpdateRequestByid
+
+const getUpdateRequestById = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { updateRequestId } = req.params;
+    const updateRequestIdNum = Number(updateRequestId);
+    if (isNaN(updateRequestIdNum)) {
+      throw new ApiError(400, "Invalid Update Request ID");
+    }
+    const updateRequest = await prisma.updateRequest.findUnique({
+      where: {
+        requestId: updateRequestIdNum,
+      },
+      include: {
+        reviewer: {
+          select: {
+            empId: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            role: true,
+          },
+        },
+      },
+    });
+    if (!updateRequest) {
+      throw new ApiError(404, "Update Request Not Found");
+    }
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(
+          200,
+          "Update Request Fetched Successfully",
+          updateRequest
         )
       );
   }
@@ -771,6 +814,7 @@ export {
   getMyLeaves,
   cancelLeaveRequest,
   getMyUpdateRequests,
+  getUpdateRequestById,
   getMyTasks,
   getTaskById,
   updateTaskStatus,
