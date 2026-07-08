@@ -5,7 +5,6 @@ import { ApiResponse } from "../utils/ApiResponse";
 import { prisma } from "../db/prisma";
 import { uploadOnCloudinary, deleteFromCloudinary } from "../utils/cloudinary";
 import { comparePassword } from "../utils/comparePassword";
-import { get } from "node:http";
 
 // Get Employee
 
@@ -417,6 +416,17 @@ const getTaskById = asyncHandler(async (req: Request, res: Response) => {
     where: {
       taskId: Number(taskId),
     },
+    include: {
+      assignedBy: {
+        select: {
+          empId: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          role: true,
+        },
+      },
+    },
   });
   if (!task) {
     throw new ApiError(404, "Task Not Found");
@@ -516,6 +526,99 @@ const getAllPayrolls = asyncHandler(async (req: Request, res: Response) => {
     })
   );
 });
+
+// get payrollHistory
+
+const getPayrollHistory = asyncHandler(async (req: Request, res: Response) => {
+  const { empId } = req.user;
+  const pageNo = Math.max(1, Number(req.query.pageNo) || 1);
+  const limit = Math.max(1, Number(req.query.limit) || 10);
+  const skip = (pageNo - 1) * limit;
+  const sortOrderQuery = req.query.sortOrder as string;
+  const sortOrder: "asc" | "desc" = sortOrderQuery === "desc" ? "desc" : "asc";
+  const [payrollsHistory, totalCount] = await prisma.$transaction([
+    prisma.payrollHistory.findMany({
+      where: {
+        empId: empId,
+      },
+      skip: skip,
+      take: limit,
+      orderBy: {
+        createdAt: sortOrder,
+      },
+    }),
+    prisma.payroll.count({
+      where: {
+        empId: empId,
+      },
+    }),
+  ]);
+  if (payrollsHistory.length === 0) {
+    return res
+      .status(200)
+      .json(new ApiResponse(200, "No PayrollHistory Found", []));
+  }
+  return res.status(200).json(
+    new ApiResponse(200, "Payrolls Fetched Successfully", {
+      payrollsHistory,
+      pagination: {
+        currentPage: pageNo,
+        totalPages: Math.ceil(totalCount / limit),
+        totalItems: totalCount,
+      },
+    })
+  );
+});
+
+//getPayrollHistoryById
+
+const getPayrollHistoryById = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { empId } = req.user;
+    const { payrollHistoryId } = req.params;
+    const payrollHistory = await prisma.payrollHistory.findUnique({
+      where: {
+        payrollHistoryId: Number(payrollHistoryId),
+      },
+      include: {
+        employee: {
+          select: {
+            empId: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+        changedBy: {
+          select: {
+            empId: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+      },
+    });
+    if (!payrollHistory) {
+      throw new ApiError(404, "PayrollHistory Not Found");
+    }
+    if (payrollHistory.empId !== empId) {
+      throw new ApiError(
+        403,
+        "You are not authorized to view this payrollHistory"
+      );
+    }
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(
+          200,
+          "PayrollHistory Fetched Successfully",
+          payrollHistory
+        )
+      );
+  }
+);
 
 // get my all attendances
 
@@ -828,4 +931,6 @@ export {
   updateQualification,
   getAllQualifications,
   deleteQualification,
+  getPayrollHistory,
+  getPayrollHistoryById,
 };

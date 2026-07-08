@@ -1,15 +1,16 @@
 import { Router } from "express";
 import { validate } from "../middlewares/validate.middleware";
 import {
-  cancelLeaveRequest,
-  createUpdateRequest,
   getEmployeeProfile,
-  getMyLeaves,
-  getMyUpdateRequests,
-  leaveRequest,
   updateProfileItself,
   updateProfilePic,
   updatePassword,
+  createUpdateRequest,
+  leaveRequest,
+  getMyLeaves,
+  cancelLeaveRequest,
+  getMyUpdateRequests,
+  getUpdateRequestById,
   getMyTasks,
   getTaskById,
   updateTaskStatus,
@@ -23,7 +24,8 @@ import {
   updateQualification,
   getAllQualifications,
   deleteQualification,
-  getUpdateRequestById,
+  getPayrollHistory,
+  getPayrollHistoryById,
 } from "../controllers/employee.controllers";
 import { verifyJwt } from "../middlewares/auth.middleware";
 import {
@@ -35,9 +37,7 @@ import {
   updateSchema,
 } from "../validators/employee.validator";
 import { updateTaskStatusSchema } from "../validators/task.validator";
-import multer from "multer";
 import { upload } from "../middlewares/multer.middleware";
-import { get } from "node:http";
 
 const router = Router();
 
@@ -106,4 +106,9 @@ router.route("/qualifications").get(verifyJwt, getAllQualifications);
 router
   .route("/delete-qualification/:qualId")
   .delete(verifyJwt, deleteQualification);
+
+router.route("/payrolls-history").get(verifyJwt, getPayrollHistory);
+router
+  .route("/payroll-history/:payrollId")
+  .get(verifyJwt, getPayrollHistoryById);
 export default router;

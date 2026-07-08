@@ -78,7 +78,7 @@ model Employee {
   department         Department?      @relation(fields: [departmentId], references: [deptId])
   managedDept        Department?      @relation("DeptManager")
   qualification      Qualification[]
-  payroll            Payroll?
+  payroll            Payroll[]
   employeeleaves     Leave[]          @relation("EmployeeLeaves")
   reviewedLeaves     Leave[]          @relation("ReviewerLeaves")
   attendance         Attendance[]
@@ -124,12 +124,14 @@ model Department {
 // Payroll Model
 model Payroll {
   payrollId Int      @id @default(autoincrement())
-  empId     Int      @unique
+  empId     Int
   employee  Employee @relation(fields: [empId], references: [empId])
   issueDate DateTime
   salary    Int
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@unique([empId, issueDate])
 }
 
 // Leave Model
