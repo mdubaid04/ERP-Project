@@ -19,6 +19,7 @@ import type {
 import { calculateTotalDays } from "../utils/calculateTotalDays";
 import { getDatesInRange } from "../utils/getDatesInRange";
 import calculateTotalWorkingdays from "../utils/calculateTotalWorkingdays";
+import { th } from "zod/locales";
 
 //?                                           EMPLOYEES CONTROLLER
 
@@ -1377,12 +1378,85 @@ const createPayrollIndividual = asyncHandler(
         issuedById: req.user.empId,
         issuerRole: req.user.role,
       },
+      include: {
+        employee: {
+          select: {
+            empId: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            role: true,
+          },
+        },
+      },
     });
     return res
       .status(200)
       .json(new ApiResponse(201, "Payroll Created Successfully", payroll));
   }
 );
+
+// update Payroll
+
+const updatePayroll = asyncHandler(async (req: Request, res: Response) => {
+  const { payrollId } = req.params;
+  if (isNaN(Number(payrollId))) {
+    throw new ApiError(400, "Invalid Payroll Id");
+  }
+
+  const existingPayroll = await prisma.payroll.findUnique({
+    where: {
+      payrollId: Number(payrollId),
+    },
+    include: {
+      employee: {
+        select: {
+          empId: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          role: true,
+        },
+      },
+    },
+  });
+  if (!existingPayroll) {
+    throw new ApiError(404, "Payroll Not Found");
+  }
+
+  const { status } = req.body;
+  const updatedPayroll = await prisma.payroll.update({
+    where: {
+      payrollId: Number(payrollId),
+    },
+    data: {
+      status: status,
+    },
+  });
+  const statusResponse: Record<string, string> = {
+    FAILED:
+      "Due to some issues with Bank . Your PayRoll status will updated shortly",
+    HOLD: "Your Payroll has been put on hold by Admin , Please contact Admin for more information",
+  };
+  const reasonText = statusResponse[status] ? `${statusResponse[status]}` : "";
+  try {
+    sendEmail({
+      To: existingPayroll.employee.email,
+      Subject: `Payroll ${status}`,
+      Text: `Your Payroll for ${updatedPayroll.month}/${updatedPayroll.year} has been ${status}.${reasonText} .`,
+      Html: `<div style="font-family:Arial, Helvetica, sans-serif;max-width:480px;margin:auto;padding:24px; border : 1px solid #e0e0e0; border-radius:8px;">
+      <h2 style="color:#333;">Payroll ${status}</h2>
+      <p style="color:#555; font-size:14px;">Your Payroll for ${updatedPayroll.month}/${updatedPayroll.year} has been ${status}.${reasonText} .</p>
+      <p style="color:#888; font-size:12px;">If you did't request this, you can ignore this email.</p>
+      </div>`,
+    });
+  } catch (error) {
+    throw new ApiError(500, "Internal Server Error");
+  }
+  return res
+    .status(200)
+    .json(new ApiResponse(200, "Payroll Updated Successfully", updatedPayroll));
+});
 
 // get Payrolls
 
