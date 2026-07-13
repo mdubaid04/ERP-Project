@@ -19,7 +19,6 @@ import type {
 import { calculateTotalDays } from "../utils/calculateTotalDays";
 import { getDatesInRange } from "../utils/getDatesInRange";
 import calculateTotalWorkingdays from "../utils/calculateTotalWorkingdays";
-import { th } from "zod/locales";
 
 //?                                           EMPLOYEES CONTROLLER
 
@@ -1857,4 +1856,16 @@ export {
   processLeaveRequest,
   getLeaveRequestById,
   getAllLeaveRequests,
+  getPayrollHistory,
+  createPayrollHistory,
+  getPayrollHistoryById,
+  getPayrollHistoryByEmpId,
+  createPayrollIndividual,
+  updatePayroll,
+  getPayrollByEmpId,
+  getPayrollById,
+  getPayrolls,
+  getAllAttendance,
+  getAttendanceById,
+  updateAttendance,
 };

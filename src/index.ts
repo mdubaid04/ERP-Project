@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { app } from "./app";
 import { basePrisma } from "./db/prisma";
+import "./cron/attendance.cron";
 const port: number = Number(process.env.PORT) || 3000;
 app.listen(port, async () => {
   try {
