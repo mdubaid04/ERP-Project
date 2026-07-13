@@ -3,10 +3,22 @@ import type { Request, Response, NextFunction } from "express";
 import { ApiError } from "../utils/ApiError";
 import { ApiResponse } from "../utils/ApiResponse";
 import { prisma } from "../db/prisma";
-import { sendPasswordEmail } from "../utils/mailer";
+import {
+  sendEmail,
+  sendLeaveResponseMail,
+  sendPasswordEmail,
+} from "../utils/mailer";
 import temPass from "../utils/tempPassword";
-import { SortOrder } from "../../generated/prisma/internal/prismaNamespace";
-import type { Role } from "../../generated/prisma/enums";
+import type {
+  Role,
+  RequestStatus,
+  TaskStatus,
+  AttendanceStatus,
+  PayrollStatus,
+} from "../../generated/prisma/enums";
+import { calculateTotalDays } from "../utils/calculateTotalDays";
+import { getDatesInRange } from "../utils/getDatesInRange";
+import calculateTotalWorkingdays from "../utils/calculateTotalWorkingdays";
 
 //?                                           EMPLOYEES CONTROLLER
 
@@ -397,6 +409,26 @@ const getAllDepartments = asyncHandler(async (req: Request, res: Response) => {
       orderBy: {
         deptId: sortOrder,
       },
+      include: {
+        manager: {
+          select: {
+            empId: true,
+            firstName: true,
+            lastName: true,
+            role: true,
+          },
+        },
+        employees: {
+          select: {
+            empId: true,
+            firstName: true,
+            lastName: true,
+            role: true,
+            phoneNo: true,
+            email: true,
+          },
+        },
+      },
     }),
     prisma.department.count(),
   ]);
@@ -424,6 +456,26 @@ const getDepartmentById = asyncHandler(async (req: Request, res: Response) => {
     where: {
       deptId: deptIdNum,
     },
+    include: {
+      manager: {
+        select: {
+          empId: true,
+          firstName: true,
+          lastName: true,
+          role: true,
+        },
+      },
+      employees: {
+        select: {
+          empId: true,
+          firstName: true,
+          lastName: true,
+          role: true,
+          phoneNo: true,
+          email: true,
+        },
+      },
+    },
   });
   if (!department) {
     throw new ApiError(404, "Department Not Found");
@@ -442,11 +494,24 @@ const getAllUpdateRequests = asyncHandler(
     const pageNo = Math.max(1, Number(req.query.pageNo) || 1);
     const limit = Math.max(1, Number(req.query.limit) || 10);
     const skip = (pageNo - 1) * limit;
+    const statusQuery = req.query.status as RequestStatus | undefined;
+    const validStatuses = ["PENDING", "APPROVED", "REJECTED"];
+    if (statusQuery && !validStatuses.includes(statusQuery)) {
+      throw new ApiError(400, "Invalid Status");
+    }
+    const status = statusQuery as
+      | "PENDING"
+      | "APPROVED"
+      | "REJECTED"
+      | undefined;
     const sortOrderQuery = req.query.sortOrder as string;
     const sortOrder: "asc" | "desc" =
       sortOrderQuery === "desc" ? "desc" : "asc";
     const [allUpdateRequests, totalCount] = await prisma.$transaction([
       prisma.updateRequest.findMany({
+        where: {
+          ...(status && { status: status }),
+        },
         include: {
           employee: {
             select: {
@@ -576,6 +641,1077 @@ const processUpdateRequest = asyncHandler(
   }
 );
 
+//?                                                               LEAVE REQUEST CONTROLLERS
+
+// get all leaveRequests
+
+const getAllLeaveRequests = asyncHandler(
+  async (req: Request, res: Response) => {
+    const pageNo = Math.max(1, Number(req.query.pageNo) || 1);
+    const limit = Math.max(1, Number(req.query.limit) || 10);
+    const skip = (pageNo - 1) * limit;
+    const statusQuery = req.query.status as RequestStatus | undefined;
+    const validStatuses = ["PENDING", "APPROVED", "REJECTED"];
+    if (statusQuery && !validStatuses.includes(statusQuery)) {
+      throw new ApiError(400, "Invalid Status");
+    }
+    const status = statusQuery as
+      | "PENDING"
+      | "APPROVED"
+      | "REJECTED"
+      | undefined;
+    const sortOrderQuery = req.query.sortOrder as string;
+    const sortOrder: "asc" | "desc" =
+      sortOrderQuery === "desc" ? "desc" : "asc";
+
+    const [allLeaveRequests, totalCount] = await prisma.$transaction([
+      prisma.leave.findMany({
+        where: {
+          ...(status && { status: status }), // based on rule of && operator if left side is truthy then the expression become right side i.e, "PENDING"&&{status:"PENDING"} as left side is truthy then the expression become {status:"PENDING"} and after spread operator it become status:"PENDING"
+        },
+        include: {
+          employee: {
+            select: {
+              empId: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              role: true,
+            },
+          },
+        },
+        skip: skip,
+        take: limit,
+        orderBy: {
+          createdAt: sortOrder,
+        },
+      }),
+      prisma.leave.count({
+        where: {
+          ...(status && { status: status }),
+        },
+      }),
+    ]);
+    return res.status(200).json(
+      new ApiResponse(200, "Leave Requests Fetched Successfully", {
+        leaveRequests: allLeaveRequests,
+        pagination: {
+          currentPage: pageNo,
+          totalPages: Math.ceil(totalCount / limit),
+          totalItems: totalCount,
+        },
+      })
+    );
+  }
+);
+
+// get leaveRequestById
+
+const getLeaveRequestById = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { leaveId } = req.params;
+    const leaveIdNum = Number(leaveId);
+    if (isNaN(leaveIdNum)) {
+      throw new ApiError(400, "Invalid Leave Request ID");
+    }
+    const leaveRequest = await prisma.leave.findUnique({
+      where: {
+        leaveId: leaveIdNum,
+      },
+      include: {
+        employee: {
+          select: {
+            empId: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            role: true,
+          },
+        },
+      },
+    });
+    if (!leaveRequest) {
+      throw new ApiError(404, "Leave Request Not Found");
+    }
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(200, "Leave Request Fetched Successfully", leaveRequest)
+      );
+  }
+);
+
+// Process Leave Request
+
+const processLeaveRequest = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { leaveId } = req.params;
+    const { action, rejectReason } = req.body;
+    if (!["APPROVED", "REJECTED"].includes(action)) {
+      throw new ApiError(400, "Invalid Action");
+    }
+    if (action === "REJECTED" && !rejectReason) {
+      throw new ApiError(400, "Reject Reason Required");
+    }
+    const reviewerRemark = action === "REJECTED" ? rejectReason : "APPROVED";
+    const leaveIdNum = Number(leaveId);
+    if (isNaN(leaveIdNum)) {
+      throw new ApiError(400, "Invalid Leave Request ID");
+    }
+    const leaveRequest = await prisma.leave.findUnique({
+      where: {
+        leaveId: leaveIdNum,
+      },
+      include: {
+        employee: {
+          select: {
+            firstName: true,
+            lastName: true,
+            email: true,
+            role: true,
+            remainingLeaves: true,
+          },
+        },
+      },
+    });
+    if (!leaveRequest) {
+      throw new ApiError(404, "Leave Request Not Found");
+    }
+    if (leaveRequest.status !== "PENDING") {
+      throw new ApiError(400, "Leave Request Already Processed");
+    }
+    await prisma.leave.update({
+      where: {
+        leaveId: leaveIdNum,
+      },
+      data: {
+        status: action,
+        reviewerRemarks: reviewerRemark,
+        reviewedBy: req.user.empId,
+        reviewerRole: "ADMIN",
+        reviewedAt: new Date(),
+      },
+    });
+    if (action === "APPROVED") {
+      const dates = getDatesInRange(
+        leaveRequest.startDate,
+        leaveRequest.endDate
+      );
+      const totalDays = calculateTotalDays(
+        leaveRequest.startDate,
+        leaveRequest.endDate
+      );
+      const [, updatedEmployee] = await prisma.$transaction([
+        prisma.attendance.createMany({
+          data: dates.map((date) => ({
+            empId: leaveRequest.empId,
+            date: date,
+            status: "ON_LEAVE",
+          })),
+          skipDuplicates: true,
+        }),
+        prisma.employee.update({
+          where: {
+            empId: leaveRequest.empId,
+          },
+          data: {
+            remainingLeaves: {
+              decrement: totalDays,
+            },
+          },
+          select: {
+            remainingLeaves: true,
+          },
+        }),
+      ]);
+      sendLeaveResponseMail(
+        leaveRequest.employee.email,
+        action,
+        "",
+        updatedEmployee.remainingLeaves
+      );
+    } else {
+      sendLeaveResponseMail(
+        leaveRequest.employee.email,
+        action,
+        rejectReason,
+        leaveRequest.employee.remainingLeaves
+      );
+    }
+
+    return res
+      .status(200)
+      .json(new ApiResponse(200, `Leave Request ${action} `, {}));
+  }
+);
+
+//?                                                               TASK CONTROLLERS
+
+// get all Task Status
+
+const getTasksByStatus = asyncHandler(async (req: Request, res: Response) => {
+  const pageNo = Math.max(1, Number(req.query.pageNo) || 1);
+  const limit = Math.max(1, Number(req.query.limit) || 10);
+  const skip = (pageNo - 1) * limit;
+  const taskStatusQuery = req.query.status as TaskStatus | undefined;
+  const validStatuses = ["IN_PROGRESS", "COMPLETED", "PENDING"];
+  if (taskStatusQuery && !validStatuses.includes(taskStatusQuery)) {
+    throw new ApiError(400, "Invalid Status");
+  }
+  const status = taskStatusQuery as
+    | "PENDING"
+    | "IN_PROGRESS"
+    | "COMPLETED"
+    | undefined;
+  const sortOrderQuery = req.query.sortOrder as string;
+  const sortOrder: "asc" | "desc" = sortOrderQuery === "desc" ? "desc" : "asc";
+
+  const [taskStatuses, totalCount] = await prisma.$transaction([
+    prisma.task.findMany({
+      where: {
+        ...(status && { status: status }),
+      },
+      skip: skip,
+      take: limit,
+      orderBy: {
+        createdAt: sortOrder,
+      },
+      include: {
+        assignedTo: {
+          select: {
+            empId: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            role: true,
+          },
+        },
+        assignedBy: {
+          select: {
+            empId: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            role: true,
+          },
+        },
+      },
+    }),
+    prisma.task.count({
+      where: {
+        ...(status && { status: status }),
+      },
+    }),
+  ]);
+
+  return res.status(200).json(
+    new ApiResponse(200, "Task Status Fetched Successfully", {
+      taskStatuses,
+      pagination: {
+        currentPage: pageNo,
+        totalPages: Math.ceil(totalCount / limit),
+        totalItems: totalCount,
+      },
+    })
+  );
+});
+
+// get task by employee
+
+const getTaskByEmpId = asyncHandler(async (req: Request, res: Response) => {
+  const { empId } = req.params;
+  const empIdNum = Number(empId);
+  if (isNaN(empIdNum)) {
+    throw new ApiError(400, "Invalid Employee Id");
+  }
+  const pageNo = Math.max(1, Number(req.query.pageNo) || 1);
+  const limit = Math.max(1, Number(req.query.limit) || 10);
+  const skip = (pageNo - 1) * limit;
+  const taskStatusQuery = req.query.status as TaskStatus | undefined;
+  const validStatuses = ["IN_PROGRESS", "COMPLETED", "PENDING"];
+  if (taskStatusQuery && !validStatuses.includes(taskStatusQuery)) {
+    throw new ApiError(400, "Invalid Status");
+  }
+  const status = taskStatusQuery as
+    | "PENDING"
+    | "IN_PROGRESS"
+    | "COMPLETED"
+    | undefined;
+  const sortOrderQuery = req.query.sortOrder as string;
+  const sortOrder: "asc" | "desc" = sortOrderQuery === "desc" ? "desc" : "asc";
+  const [taskStatuses, totalCount] = await prisma.$transaction([
+    prisma.task.findMany({
+      where: {
+        assignedToId: empIdNum,
+        ...(status && { status: status }),
+      },
+      skip: skip,
+      take: limit,
+      orderBy: {
+        createdAt: sortOrder,
+      },
+      include: {
+        assignedTo: {
+          select: {
+            empId: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            role: true,
+          },
+        },
+        assignedBy: {
+          select: {
+            empId: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            role: true,
+          },
+        },
+      },
+    }),
+    prisma.task.count({
+      where: {
+        assignedToId: empIdNum,
+        ...(status && { status: status }),
+      },
+    }),
+  ]);
+
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      `All ${status} Task Fetched of ${empId} Successfully`,
+      {
+        taskStatuses,
+        pagination: {
+          currentPage: pageNo,
+          totalPages: Math.ceil(totalCount / limit),
+          totalItems: totalCount,
+        },
+      }
+    )
+  );
+});
+
+// get Task by role
+const getTaskByRole = asyncHandler(async (req: Request, res: Response) => {
+  const roleQuery = req.query.role as Role | undefined;
+  const validRoles = ["ADMIN", "MANAGER", "EMPLOYEE", "TEAM_LEADER"];
+  if (roleQuery && !validRoles.includes(roleQuery)) {
+    throw new ApiError(400, "Invalid Role");
+  }
+  const role = roleQuery as
+    | "ADMIN"
+    | "MANAGER"
+    | "EMPLOYEE"
+    | "TEAM_LEADER"
+    | undefined;
+  const pageNo = Math.max(1, Number(req.query.pageNo) || 1);
+  const limit = Math.max(1, Number(req.query.limit) || 10);
+  const skip = (pageNo - 1) * limit;
+  const taskStatusQuery = req.query.status as TaskStatus | undefined;
+  const validStatuses = ["IN_PROGRESS", "COMPLETED", "PENDING"];
+  if (taskStatusQuery && !validStatuses.includes(taskStatusQuery)) {
+    throw new ApiError(400, "Invalid Status");
+  }
+  const status = taskStatusQuery as
+    | "PENDING"
+    | "IN_PROGRESS"
+    | "COMPLETED"
+    | undefined;
+  const sortOrderQuery = req.query.sortOrder as string;
+  const sortOrder: "asc" | "desc" = sortOrderQuery === "desc" ? "desc" : "asc";
+  const [taskStatuses, totalCount] = await prisma.$transaction([
+    prisma.task.findMany({
+      where: {
+        ...(status && { status: status }),
+        ...(role && { assignedTo: { role: role } }),
+      },
+      skip: skip,
+      take: limit,
+      orderBy: {
+        createdAt: sortOrder,
+      },
+      include: {
+        assignedTo: {
+          select: {
+            empId: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            role: true,
+          },
+        },
+        assignedBy: {
+          select: {
+            empId: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            role: true,
+          },
+        },
+      },
+    }),
+    prisma.task.count({
+      where: {
+        ...(status && { status: status }),
+        ...(role && { assignedTo: { role: role } }),
+      },
+    }),
+  ]);
+
+  return res.status(200).json(
+    new ApiResponse(200, `All ${status} Task Fetched of ${role} Successfully`, {
+      taskStatuses,
+      pagination: {
+        currentPage: pageNo,
+        totalPages: Math.ceil(totalCount / limit),
+        totalItems: totalCount,
+      },
+    })
+  );
+});
+
+// create Task For Manager
+const createTaskForManager = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { taskName, description, dueDate, assignedToId } = req.body;
+    const manager = await prisma.employee.findUnique({
+      where: {
+        empId: assignedToId,
+      },
+    });
+    if (!manager) {
+      throw new ApiError(404, "Manager Not Found");
+    }
+    if (manager.role !== "MANAGER") {
+      throw new ApiError(400, "Task can only be created for Manager");
+    }
+    const existingTask = await prisma.task.findFirst({
+      where: {
+        taskName,
+        assignedToId,
+        status: { not: "COMPLETED" },
+        dueDate: dueDate,
+      },
+    });
+    if (existingTask) {
+      throw new ApiError(
+        400,
+        "This Task is already assigned to this manager with same due date"
+      );
+    }
+
+    const task = await prisma.task.create({
+      data: {
+        taskName,
+        description,
+        issueDate: new Date(),
+        dueDate,
+        assignedToId,
+        assignedById: req.user.empId,
+      },
+    });
+    return res
+      .status(200)
+      .json(new ApiResponse(200, "Task created successfully", task));
+  }
+);
+
+//?                                                               Attendance CONTROLLERS
+
+// getAllAttendance
+const getAllAttendance = asyncHandler(async (req: Request, res: Response) => {
+  const pageNo = Math.max(1, Number(req.query.pageNo) || 1);
+  const limit = Math.max(1, Number(req.query.limit) || 10);
+  const skip = (pageNo - 1) * limit;
+  const attendanceStatusQuery = req.query.status as
+    | AttendanceStatus
+    | undefined;
+  const validStatuses = ["PRESENT", "ABSENT", "HALF_DAY", "ON_LEAVE", "LATE"];
+  if (attendanceStatusQuery && !validStatuses.includes(attendanceStatusQuery)) {
+    throw new ApiError(400, "Invalid Status");
+  }
+  const status = attendanceStatusQuery;
+  const [attendance, totalCount] = await prisma.$transaction([
+    prisma.attendance.findMany({
+      where: {
+        ...(status && { status: status }),
+      },
+      skip: skip,
+      take: limit,
+      orderBy: {
+        createdAt: "desc",
+      },
+      include: {
+        employee: {
+          select: {
+            empId: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            role: true,
+          },
+        },
+      },
+    }),
+    prisma.attendance.count({
+      where: {
+        ...(status && { status: status }),
+      },
+    }),
+  ]);
+  return res.status(200).json(
+    new ApiResponse(200, "All Attendance Fetched Successfully", {
+      attendance,
+      pagination: {
+        currentPage: pageNo,
+        totalPages: Math.ceil(totalCount / limit),
+        totalItems: totalCount,
+      },
+    })
+  );
+});
+
+//get attendance by id
+const getAttendanceById = asyncHandler(async (req: Request, res: Response) => {
+  const { attendanceId } = req.params;
+  if (isNaN(Number(attendanceId))) {
+    throw new ApiError(400, "Invalid Attendance Id");
+  }
+  const attendance = await prisma.attendance.findUnique({
+    where: {
+      attendanceId: Number(attendanceId),
+    },
+    include: {
+      employee: {
+        select: {
+          empId: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          role: true,
+        },
+      },
+    },
+  });
+  if (!attendance) {
+    throw new ApiError(404, "Attendance Not Found");
+  }
+  return res
+    .status(200)
+    .json(new ApiResponse(200, "Attendance Fetched Successfully", attendance));
+});
+
+// update Attendance
+const updateAttendance = asyncHandler(async (req: Request, res: Response) => {
+  const { attendanceId } = req.params;
+  const { status, checkIn, checkOut } = req.body;
+  if (!attendanceId || isNaN(Number(attendanceId))) {
+    throw new ApiError(400, "Invalid Attendance Id");
+  }
+  if (status) {
+    const validStatuses = ["PRESENT", "ABSENT", "HALF_DAY", "ON_LEAVE", "LATE"];
+    if (!validStatuses.includes(status)) {
+      throw new ApiError(400, "Invalid Status");
+    }
+  }
+  if (checkIn && isNaN(Date.parse(checkIn))) {
+    throw new ApiError(400, "Invalid checkIn");
+  }
+  if (checkOut && isNaN(Date.parse(checkOut))) {
+    throw new ApiError(400, "Invalid checkOut");
+  }
+
+  if (checkIn && checkOut && new Date(checkOut) <= new Date(checkIn)) {
+    throw new ApiError(400, "checkOut must be after checkIn");
+  }
+
+  const existingAttendance = await prisma.attendance.findUnique({
+    where: {
+      attendanceId: Number(attendanceId),
+    },
+  });
+  if (!existingAttendance) {
+    throw new ApiError(404, "Attendance Not Found");
+  }
+
+  const attendance = await prisma.attendance.update({
+    where: {
+      attendanceId: Number(attendanceId),
+    },
+    data: {
+      ...(status && { status: status }),
+      ...(checkIn && { checkIn: new Date(checkIn) }),
+      ...(checkOut && { checkOut: new Date(checkOut) }),
+    },
+    include: {
+      employee: {
+        select: {
+          empId: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          role: true,
+        },
+      },
+    },
+  });
+  return res
+    .status(200)
+    .json(new ApiResponse(200, "Attendance Updated Successfully", attendance));
+});
+
+//?                                                               PayRoll CONTROLLERS
+
+// create Payroll
+
+const createPayrollIndividual = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { empId, month, year, basicSalary, allowance, bonus, deductions } =
+      req.body;
+    const existingEmployee = await prisma.employee.findUnique({
+      where: {
+        empId: empId,
+      },
+    });
+    if (!existingEmployee) {
+      throw new ApiError(404, "Employee Not Found");
+    }
+    const existingPayroll = await prisma.payroll.findUnique({
+      where: {
+        empId_month_year: {
+          empId: empId,
+          month: month,
+          year: year,
+        },
+      },
+    });
+    if (existingPayroll) {
+      throw new ApiError(
+        400,
+        "Payroll Already Exists for this employee in given month and year"
+      );
+    }
+    const totalWorkingDaysOfMonth = await calculateTotalWorkingdays(
+      year,
+      month
+    );
+    const monthAttendance = await prisma.attendance.findMany({
+      where: {
+        empId: empId,
+        date: {
+          gte: new Date(year, month - 1, 1),
+          lte: new Date(year, month, 0),
+        },
+      },
+      select: {
+        status: true,
+        checkIn: true,
+        checkOut: true,
+        date: true,
+      },
+    });
+    const monthLeaves = await prisma.leave.findMany({
+      where: {
+        empId: empId,
+        startDate: {
+          lte: new Date(year, month, 0),
+        },
+        endDate: {
+          gte: new Date(year, month - 1, 1),
+        },
+      },
+      select: {
+        status: true,
+        leaveType: true,
+        startDate: true,
+        endDate: true,
+      },
+    });
+    let totalPresentDays = 0;
+    for (let day of monthAttendance) {
+      if (day.status == "PRESENT") {
+        totalPresentDays++;
+      } else if (day.status == "HALF_DAY") {
+        totalPresentDays += 0.5;
+      } else if (day.status == "LATE") {
+        totalPresentDays += 0.75;
+      } else if (day.status == "ON_LEAVE") {
+        const matchingLeave = monthLeaves.find(
+          (leave) =>
+            leave.status == "APPROVED" &&
+            (leave.leaveType == "SICK" || leave.leaveType == "CASUAL") &&
+            day.date >= leave.startDate &&
+            day.date <= leave.endDate
+        );
+        if (matchingLeave) {
+          totalPresentDays++;
+        }
+      }
+    }
+
+    const perDaySalary = Number(basicSalary) / totalWorkingDaysOfMonth;
+    const payableIncome =
+      totalPresentDays * perDaySalary +
+      Number(allowance || 0) +
+      Number(bonus || 0) -
+      Number(deductions || 0);
+    const payroll = await prisma.payroll.create({
+      data: {
+        empId: empId,
+        month: month,
+        year: year,
+        totalDays: totalWorkingDaysOfMonth,
+        presentDays: totalPresentDays,
+        basicSalary: basicSalary,
+        allowance: allowance,
+        bonus: bonus,
+        deductions: deductions,
+        netSalary: payableIncome,
+        issueDate: new Date(),
+        status: "PENDING",
+        issuedById: req.user.empId,
+        issuerRole: req.user.role,
+      },
+    });
+    return res
+      .status(200)
+      .json(new ApiResponse(201, "Payroll Created Successfully", payroll));
+  }
+);
+
+// get Payrolls
+
+const getPayrolls = asyncHandler(async (req: Request, res: Response) => {
+  const pageNo = Math.max(1, Number(req.query.pageNo) || 1);
+  const limit = Math.max(1, Number(req.query.limit) || 10);
+  const skip = (pageNo - 1) * limit;
+  const payrollStatusQuery = req.query.status as PayrollStatus | undefined;
+  const validStatuses = ["PENDING", "PAID", "FAILED", "HOLD"];
+  if (payrollStatusQuery && !validStatuses.includes(payrollStatusQuery)) {
+    throw new ApiError(400, "Invalid Status");
+  }
+  const status = payrollStatusQuery;
+  const sortOrderQuery = req.query.sortOrder as string;
+  const sortOrder: "asc" | "desc" = sortOrderQuery === "desc" ? "desc" : "asc";
+  const [payrolls, totalCount] = await prisma.$transaction([
+    prisma.payroll.findMany({
+      where: {
+        ...(status && { status: status }),
+      },
+      skip: skip,
+      take: limit,
+      orderBy: {
+        createdAt: sortOrder,
+      },
+      include: {
+        employee: {
+          select: {
+            empId: true,
+            firstName: true,
+            lastName: true,
+            role: true,
+          },
+        },
+      },
+    }),
+    prisma.payroll.count({
+      where: {
+        ...(status && { status: status }),
+      },
+    }),
+  ]);
+  if (payrolls.length === 0) {
+    return res.status(200).json(new ApiResponse(200, "No Payrolls Found", []));
+  }
+  return res.status(200).json(
+    new ApiResponse(200, "Payrolls Fetched Successfully", {
+      payrolls,
+      pagination: {
+        currentPage: pageNo,
+        totalPages: Math.ceil(totalCount / limit),
+        totalItems: totalCount,
+      },
+    })
+  );
+});
+
+// get Payroll By Id
+
+const getPayrollById = asyncHandler(async (req: Request, res: Response) => {
+  const { payrollId } = req.params;
+  if (isNaN(Number(payrollId))) {
+    throw new ApiError(400, "Invalid Payroll Id");
+  }
+  const payroll = await prisma.payroll.findUnique({
+    where: {
+      payrollId: Number(payrollId),
+    },
+    include: {
+      employee: {
+        select: {
+          empId: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          role: true,
+        },
+      },
+      issuedBy: {
+        select: {
+          empId: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+        },
+      },
+    },
+  });
+  if (!payroll) {
+    throw new ApiError(404, "Payroll Not Found");
+  }
+  return res
+    .status(200)
+    .json(new ApiResponse(200, "Payroll Fetched Successfully", payroll));
+});
+
+// get Payroll By empId
+
+const getPayrollByEmpId = asyncHandler(async (req: Request, res: Response) => {
+  const { empId } = req.params;
+  if (isNaN(Number(empId))) {
+    throw new ApiError(400, "Invalid Employee Id");
+  }
+  const month = Number(req.query.month as string);
+  if (isNaN(month)) {
+    throw new ApiError(400, "Invalid Month . It should be between 1 to 12");
+  }
+
+  const year = Number(req.query.year as string);
+  if (isNaN(year)) {
+    throw new ApiError(400, "Invalid Year . It should be a 4 digit number");
+  }
+  const payroll = await prisma.payroll.findUnique({
+    where: {
+      empId_month_year: {
+        empId: Number(empId),
+        month: month,
+        year: year,
+      },
+    },
+    include: {
+      employee: {
+        select: {
+          empId: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          role: true,
+        },
+      },
+      issuedBy: {
+        select: {
+          empId: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+        },
+      },
+    },
+  });
+  if (!payroll) {
+    throw new ApiError(404, "Payroll Not Found");
+  }
+  return res
+    .status(200)
+    .json(new ApiResponse(200, "Payroll Fetched Successfully", payroll));
+});
+
+//?                                                                  Payroll History CONTROLLERS
+
+// create Payroll History
+
+const createPayrollHistory = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { empId } = req.user;
+    const { employeeId, newSalary, reason } = req.body;
+    const existingEmployee = await prisma.employee.findUnique({
+      where: {
+        empId: Number(employeeId),
+      },
+      include: {
+        payroll: {
+          select: {
+            netSalary: true,
+          },
+          orderBy: {
+            createdAt: "desc",
+          },
+          take: 1,
+        },
+      },
+    });
+    if (!existingEmployee) {
+      throw new ApiError(404, "Employee Not Found");
+    }
+    if (existingEmployee.payroll.length === 0) {
+      throw new ApiError(
+        404,
+        "No existing payroll found for this employee to compare"
+      );
+    }
+    const oldSalary = existingEmployee.payroll[0]!.netSalary;
+    const payroll = await prisma.payrollHistory.create({
+      data: {
+        empId: Number(employeeId),
+        oldSalary: oldSalary,
+        newSalary: Number(newSalary),
+        reason: reason,
+        changeDate: new Date(),
+        changedById: empId,
+      },
+    });
+    return res
+      .status(201)
+      .json(
+        new ApiResponse(200, "Payroll History Created Successfully", payroll)
+      );
+  }
+);
+
+// get Payroll History
+
+const getPayrollHistory = asyncHandler(async (req: Request, res: Response) => {
+  const pageNo = Math.max(1, Number(req.query.pageNo) || 1);
+  const limit = Math.max(1, Number(req.query.limit) || 10);
+  const skip = (pageNo - 1) * limit;
+  const sortOrderQuery = req.query.sortOrder as string;
+  const sortOrder: "asc" | "desc" = sortOrderQuery === "desc" ? "desc" : "asc";
+  const [payrolls, totalCount] = await prisma.$transaction([
+    prisma.payrollHistory.findMany({
+      skip: skip,
+      take: limit,
+      orderBy: {
+        createdAt: sortOrder,
+      },
+      include: {
+        employee: {
+          select: {
+            empId: true,
+            firstName: true,
+            lastName: true,
+            role: true,
+          },
+        },
+      },
+    }),
+    prisma.payrollHistory.count(),
+  ]);
+  if (payrolls.length === 0) {
+    return res.status(200).json(new ApiResponse(200, "No Payrolls Found", []));
+  }
+  return res.status(200).json(
+    new ApiResponse(200, "Payrolls Fetched Successfully", {
+      payrolls,
+      pagination: {
+        currentPage: pageNo,
+        totalPages: Math.ceil(totalCount / limit),
+        totalItems: totalCount,
+      },
+    })
+  );
+});
+
+// get Payroll History By Id
+
+const getPayrollHistoryById = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { payrollId } = req.params;
+    if (isNaN(Number(payrollId))) {
+      throw new ApiError(400, "Invalid Payroll Id");
+    }
+    const payroll = await prisma.payrollHistory.findUnique({
+      where: {
+        payrollHistoryId: Number(payrollId),
+      },
+      include: {
+        employee: {
+          select: {
+            empId: true,
+            firstName: true,
+            email: true,
+            lastName: true,
+            role: true,
+          },
+        },
+        changedBy: {
+          select: {
+            empId: true,
+            firstName: true,
+            email: true,
+            lastName: true,
+            role: true,
+          },
+        },
+      },
+    });
+    if (!payroll) {
+      throw new ApiError(404, "Payroll Not Found");
+    }
+    return res
+      .status(200)
+      .json(new ApiResponse(200, "Payroll Fetched Successfully", payroll));
+  }
+);
+
+// get Payroll History By empId
+
+const getPayrollHistoryByEmpId = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { empId } = req.params;
+    if (isNaN(Number(empId))) {
+      throw new ApiError(400, "Invalid Employee Id");
+    }
+    const payrollhistory = await prisma.payrollHistory.findMany({
+      where: {
+        empId: Number(empId),
+      },
+      include: {
+        employee: {
+          select: {
+            empId: true,
+            firstName: true,
+            email: true,
+            lastName: true,
+            role: true,
+          },
+        },
+        changedBy: {
+          select: {
+            empId: true,
+            firstName: true,
+            email: true,
+            lastName: true,
+            role: true,
+          },
+        },
+      },
+    });
+    if (payrollhistory.length === 0) {
+      throw new ApiError(404, "Payroll Not Found");
+    }
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(200, "Payroll Fetched Successfully", payrollhistory)
+      );
+  }
+);
+
 export {
   registerEmployee,
   getAllEmployees,
@@ -593,4 +1729,11 @@ export {
   getDepartmentById,
   getAllUpdateRequests,
   processUpdateRequest,
+  createTaskForManager,
+  getTaskByRole,
+  getTaskByEmpId,
+  getTasksByStatus,
+  processLeaveRequest,
+  getLeaveRequestById,
+  getAllLeaveRequests,
 };

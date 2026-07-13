@@ -26,6 +26,7 @@ import {
   deleteQualification,
   getPayrollHistory,
   getPayrollHistoryById,
+  getLeaveById,
 } from "../controllers/employee.controllers";
 import { verifyJwt } from "../middlewares/auth.middleware";
 import {
@@ -65,6 +66,7 @@ router
 
 router.route("/leaves").get(verifyJwt, getMyLeaves);
 
+router.route("/leave/:leaveId").get(verifyJwt, getLeaveById);
 router
   .route("/cancel-leave-request/:leaveId")
   .post(verifyJwt, cancelLeaveRequest);
@@ -97,7 +99,12 @@ router.route("/mark-checkout").post(verifyJwt, markCheckout);
 
 router
   .route("/create-qualification")
-  .post(verifyJwt, validate(createQualificationSchema), createQualification);
+  .post(
+    verifyJwt,
+    validate(createQualificationSchema),
+    upload.single("certificate"),
+    createQualification
+  );
 router.route("/qualifications").get(verifyJwt, getAllQualifications);
 router
   .route("/update-qualification/:qualId")

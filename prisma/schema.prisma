@@ -42,10 +42,12 @@ enum AttendanceStatus {
   PRESENT
   ABSENT
   HALF_DAY
+  ON_LEAVE
   LATE
 }
 
 enum TaskStatus {
+  IN_PROGRESS
   PENDING
   COMPLETED
 }
@@ -53,6 +55,21 @@ enum TaskStatus {
 enum UpdateField {
   PHONENO
   EMAIL
+}
+
+enum PayrollStatus {
+  PENDING
+  PAID
+  FAILED
+  HOLD
+}
+
+enum SalaryChangeReason {
+  INCREMENT
+  DECREMENT
+  PROMOTION
+  CORRECTION
+  OTHER
 }
 
 // Employee Model
@@ -78,11 +95,12 @@ model Employee {
   department         Department?      @relation(fields: [departmentId], references: [deptId])
   managedDept        Department?      @relation("DeptManager")
   qualification      Qualification[]
-  payroll            Payroll[]
+  payroll            Payroll[]        @relation("employeePayroll")
+  payrollIssuedBy    Payroll[]        @relation("issuedByPayroll")
   employeeleaves     Leave[]          @relation("EmployeeLeaves")
   reviewedLeaves     Leave[]          @relation("ReviewerLeaves")
   attendance         Attendance[]
-  payrollHistory     PayrollHistory[] @relation("employeePayroll")
+  payrollHistory     PayrollHistory[] @relation("employeePayrollHistory")
   payrollChangedBy   PayrollHistory[] @relation("changedByPayroll")
   assignedTasks      Task[]           @relation("assignedTasks")
   assignedByTasks    Task[]           @relation("assignedByTasks")
@@ -99,15 +117,17 @@ model Employee {
 
 // Qualification Model
 model Qualification {
-  qualId      Int      @id @default(autoincrement())
-  empId       Int
-  employee    Employee @relation(fields: [empId], references: [empId])
-  degree      String
-  university  String
-  passingYear Int
-  grade       String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  qualId              Int      @id @default(autoincrement())
+  empId               Int
+  employee            Employee @relation(fields: [empId], references: [empId])
+  degree              String
+  certificate         String?
+  certificatePublicId String?
+  university          String
+  passingYear         Int
+  grade               String
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 }
 
 // Department Model
@@ -123,33 +143,47 @@ model Department {
 
 // Payroll Model
 model Payroll {
-  payrollId Int      @id @default(autoincrement())
-  empId     Int
-  employee  Employee @relation(fields: [empId], references: [empId])
-  issueDate DateTime
-  salary    Int
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  payrollId   Int           @id @default(autoincrement())
+  empId       Int
+  employee    Employee      @relation("employeePayroll", fields: [empId], references: [empId])
+  month       Int
+  year        Int
+  basicSalary Decimal
+  allowance   Decimal       @default(0)
+  bonus       Decimal       @default(0)
+  deductions  Decimal       @default(0)
+  netSalary   Decimal
+  presentDays Decimal?
+  totalDays   Int?
+  status      PayrollStatus @default(PENDING)
+  issueDate   DateTime
+  paymentDate DateTime?
+  issuedById  Int
+  issuedBy    Employee      @relation("issuedByPayroll", fields: [issuedById], references: [empId])
+  issuerRole  Role
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
 
-  @@unique([empId, issueDate])
+  @@unique([empId, month, year])
 }
 
 // Leave Model
 model Leave {
-  leaveId      Int           @id @default(autoincrement())
-  empId        Int
-  employee     Employee      @relation("EmployeeLeaves", fields: [empId], references: [empId])
-  startDate    DateTime
-  endDate      DateTime
-  reason       String
-  status       RequestStatus @default(PENDING)
-  reviewedBy   Int?
-  reviewer     Employee?     @relation("ReviewerLeaves", fields: [reviewedBy], references: [empId])
-  reviewerRole Role?
-  reviewedAt   DateTime?
-  leaveType    LeaveType
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  leaveId         Int           @id @default(autoincrement())
+  empId           Int
+  employee        Employee      @relation("EmployeeLeaves", fields: [empId], references: [empId])
+  startDate       DateTime
+  endDate         DateTime
+  reason          String
+  status          RequestStatus @default(PENDING)
+  reviewedBy      Int?
+  reviewerRemarks String?
+  reviewer        Employee?     @relation("ReviewerLeaves", fields: [reviewedBy], references: [empId])
+  reviewerRole    Role?
+  reviewedAt      DateTime?
+  leaveType       LeaveType
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 }
 
 // Attendance Model
@@ -159,7 +193,7 @@ model Attendance {
   employee     Employee         @relation(fields: [empId], references: [empId])
   date         DateTime
   status       AttendanceStatus
-  checkIn      DateTime
+  checkIn      DateTime?
   checkOut     DateTime?
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
@@ -167,17 +201,17 @@ model Attendance {
 
 //Payroll History Model
 model PayrollHistory {
-  payrollHistoryId Int      @id @default(autoincrement())
+  payrollHistoryId Int                @id @default(autoincrement())
   empId            Int
-  employee         Employee @relation("employeePayroll", fields: [empId], references: [empId])
-  oldSalary        Int
-  newSalary        Int
-  reason           String
+  employee         Employee           @relation("employeePayrollHistory", fields: [empId], references: [empId])
+  oldSalary        Decimal
+  newSalary        Decimal
+  reason           SalaryChangeReason
   changeDate       DateTime
   changedById      Int
-  changedBy        Employee @relation("changedByPayroll", fields: [changedById], references: [empId])
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  changedBy        Employee           @relation("changedByPayroll", fields: [changedById], references: [empId])
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
 }
 
 model Task {
@@ -185,7 +219,7 @@ model Task {
   taskName     String
   description  String
   issueDate    DateTime
-  submitDate   DateTime
+  submitDate   DateTime?
   dueDate      DateTime
   status       TaskStatus @default(PENDING)
   assignedToId Int

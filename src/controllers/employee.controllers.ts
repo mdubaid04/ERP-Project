@@ -278,18 +278,86 @@ const leaveRequest = asyncHandler(async (req: Request, res: Response) => {
 
 const getMyLeaves = asyncHandler(async (req: Request, res: Response) => {
   const { empId } = req.user;
-  const leaves = await prisma.leave.findMany({
+  const pageNo = Math.max(1, Number(req.query.pageNo) || 1);
+  const limit = Math.max(1, Number(req.query.limit) || 10);
+  const skip = (pageNo - 1) * limit;
+  const sortOrderQuery = req.query.sortOrder as string;
+  const sortOrder: "asc" | "desc" = sortOrderQuery === "desc" ? "desc" : "asc";
+  const [allLeaves, totalCount] = await prisma.$transaction([
+    prisma.leave.findMany({
+      where: {
+        empId: empId,
+      },
+      include: {
+        employee: {
+          select: {
+            empId: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            role: true,
+          },
+        },
+      },
+      skip: skip,
+      take: limit,
+      orderBy: {
+        createdAt: sortOrder,
+      },
+    }),
+    prisma.leave.count(),
+  ]);
+  //if no leaves found found many will return empty array
+  return res.status(200).json(
+    new ApiResponse(200, "Leaves Fetched Successfully", {
+      allLeaves,
+      pagination: {
+        currentPage: pageNo,
+        totalPages: Math.ceil(totalCount / limit),
+        totalItems: totalCount,
+      },
+    })
+  );
+});
+
+// get leave by id
+
+const getLeaveById = asyncHandler(async (req: Request, res: Response) => {
+  const { leaveId } = req.params;
+  const leaveIdNum = Number(leaveId);
+  if (isNaN(leaveIdNum)) {
+    throw new ApiError(400, "Invalid Leave Request ID");
+  }
+  const leave = await prisma.leave.findUnique({
     where: {
-      empId: empId,
+      leaveId: leaveIdNum,
     },
-    orderBy: {
-      createdAt: "desc",
+    include: {
+      employee: {
+        select: {
+          empId: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+        },
+      },
+      reviewer: {
+        select: {
+          empId: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          role: true,
+        },
+      },
     },
   });
-  //if no leaves found found many will return empty array
+  if (!leave) {
+    throw new ApiError(404, "Leave Request Not Found");
+  }
   return res
     .status(200)
-    .json(new ApiResponse(200, "Leaves Fetched Successfully", leaves));
+    .json(new ApiResponse(200, "Leave Request Fetched Successfully", leave));
 });
 
 // cancel leave request
@@ -478,6 +546,25 @@ const getPayrollById = asyncHandler(async (req: Request, res: Response) => {
   const payroll = await prisma.payroll.findUnique({
     where: {
       payrollId: Number(payrollId),
+    },
+    include: {
+      employee: {
+        select: {
+          empId: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          role: true,
+        },
+      },
+      issuedBy: {
+        select: {
+          empId: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+        },
+      },
     },
   });
   if (!payroll) {
@@ -773,15 +860,37 @@ const createQualification = asyncHandler(
     if (!employee) {
       throw new ApiError(404, "Employee Not Found");
     }
+    const existingQualification = await prisma.qualification.findFirst({
+      where: {
+        empId: employee.empId,
+        degree: degree,
+      },
+    });
+    if (existingQualification) {
+      throw new ApiError(409, "Qualification already exists");
+    }
+    const certificateLocalPath = req.file?.path;
+    if (!certificateLocalPath) {
+      throw new ApiError(404, "Certificate Not Found");
+    }
+    const cloudinaryPath = await uploadOnCloudinary(certificateLocalPath!);
+    if (!cloudinaryPath) {
+      throw new ApiError(500, "Cloudinary Error");
+    }
+    const certificate = cloudinaryPath?.secure_url!;
+    const certificatePublicId = cloudinaryPath?.public_id!;
     const qualification = await prisma.qualification.create({
       data: {
         degree: degree,
+        certificate: certificate,
+        certificatePublicId: certificatePublicId,
         university: university,
         passingYear: passingYear,
         grade: grade,
         empId: employee.empId,
       },
     });
+
     return res
       .status(200)
       .json(
@@ -915,6 +1024,7 @@ export {
   createUpdateRequest,
   leaveRequest,
   getMyLeaves,
+  getLeaveById,
   cancelLeaveRequest,
   getMyUpdateRequests,
   getUpdateRequestById,

@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Payroll" ALTER COLUMN "presentDays" SET DATA TYPE DECIMAL(65,30);
