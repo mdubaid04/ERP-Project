@@ -585,7 +585,7 @@ const getUpdateRequestById = asyncHandler(
   }
 );
 
-// execute update request
+// process update request
 const processUpdateRequest = asyncHandler(
   async (req: Request, res: Response) => {
     const { empId } = req.user;
@@ -594,6 +594,17 @@ const processUpdateRequest = asyncHandler(
     const updateRequest = await prisma.updateRequest.findUnique({
       where: {
         requestId: Number(updateRequestId),
+      },
+      include: {
+        employee: {
+          select: {
+            empId: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            role: true,
+          },
+        },
       },
     });
     if (!updateRequest) {
@@ -621,6 +632,20 @@ const processUpdateRequest = asyncHandler(
           },
         }),
       ]);
+      try {
+        sendEmail({
+          To: updateRequest.employee.email,
+          Subject: "Update Request Approved",
+          Text: `Your ${updateRequest.fieldName} has been updated to ${updateRequest.newValue}`,
+          Html: `< style="font-family:Arial, Helvetica, sans-serif;max-width:480px;margin:auto;padding:24px; border : 1px solid #e0e0e0; border-radius:8px;">
+          <h2 style="color:#333;">Update Request Approved</h2>
+          <p style="color:#555; font-size:14px;">Your ${updateRequest.fieldName} has been updated to ${updateRequest.newValue}</p>
+          <p style="color:#888; font-size:12px;">If you did't request this, you can ignore this email.</p>
+          </div>`,
+        });
+      } catch (error) {
+        throw new ApiError(500, "Unable to send email");
+      }
     } else if (action === "REJECTED") {
       await prisma.updateRequest.update({
         where: {
@@ -634,6 +659,20 @@ const processUpdateRequest = asyncHandler(
           reviewedAt: new Date(),
         },
       });
+      try {
+        sendEmail({
+          To: updateRequest.employee.email,
+          Subject: "Update Request Rejected",
+          Text: `Your update request has been rejected. Reason: ${rejectReason}`,
+          Html: `< style="font-family:Arial, Helvetica, sans-serif;max-width:480px;margin:auto;padding:24px; border : 1px solid #e0e0e0; border-radius:8px;">
+          <h2 style="color:#333;">Update Request Rejected</h2>
+          <p style="color:#555; font-size:14px;">Your update request has been rejected. Reason: ${rejectReason}</p>
+          <p style="color:#888; font-size:12px;">If you did't request this, you can ignore this email.</p>
+          </div>`,
+        });
+      } catch (error) {
+        throw new ApiError(500, "Unable to send email");
+      }
     }
 
     return res
@@ -825,19 +864,27 @@ const processLeaveRequest = asyncHandler(
           },
         }),
       ]);
-      sendLeaveResponseMail(
-        leaveRequest.employee.email,
-        action,
-        "",
-        updatedEmployee.remainingLeaves
-      );
+      try {
+        sendLeaveResponseMail(
+          leaveRequest.employee.email,
+          action,
+          "",
+          updatedEmployee.remainingLeaves
+        );
+      } catch (error) {
+        throw new ApiError(500, "Failed to send email");
+      }
     } else {
-      sendLeaveResponseMail(
-        leaveRequest.employee.email,
-        action,
-        rejectReason,
-        leaveRequest.employee.remainingLeaves
-      );
+      try {
+        sendLeaveResponseMail(
+          leaveRequest.employee.email,
+          action,
+          rejectReason,
+          leaveRequest.employee.remainingLeaves
+        );
+      } catch (error) {
+        throw new ApiError(500, "Failed to send email");
+      }
     }
 
     return res
@@ -1451,7 +1498,7 @@ const updatePayroll = asyncHandler(async (req: Request, res: Response) => {
       </div>`,
     });
   } catch (error) {
-    throw new ApiError(500, "Internal Server Error");
+    throw new ApiError(500, "Unable to send email");
   }
   return res
     .status(200)
