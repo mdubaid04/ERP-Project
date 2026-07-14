@@ -113,6 +113,30 @@ const getEmployeeById = asyncHandler(async (req: Request, res: Response) => {
     where: {
       empId: Number(empId),
     },
+    include: {
+      department: {
+        select: {
+          deptId: true,
+          name: true,
+          manager: {
+            select: {
+              empId: true,
+              firstName: true,
+              lastName: true,
+              role: true,
+            },
+          },
+        },
+      },
+      qualification: {
+        select: {
+          degree: true,
+          university: true,
+          passingYear: true,
+          grade: true,
+        },
+      },
+    },
   });
   if (!employee) {
     throw new ApiError(404, "Employee Not Found");
@@ -137,6 +161,15 @@ const getEmployeeByDeptId = asyncHandler(
       prisma.employee.findMany({
         where: {
           departmentId: Number(deptId),
+        },
+        select: {
+          empId: true,
+          firstName: true,
+          lastName: true,
+          role: true,
+          phoneNo: true,
+          email: true,
+          isActive: true,
         },
         skip: skip,
         take: limit,
@@ -703,10 +736,38 @@ const getAllLeaveRequests = asyncHandler(
     const sortOrder: "asc" | "desc" =
       sortOrderQuery === "desc" ? "desc" : "asc";
 
+    const leaveStartDateQuery = req.query.startDate as string | undefined;
+    const leaveEndDateQuery = req.query.endDate as string | undefined;
+    let leaveStartDate: Date | undefined;
+    let leaveEndDate: Date | undefined;
+    const dateFilter: {
+      gte?: Date;
+      lte?: Date;
+    } = {};
+    if (leaveStartDateQuery) {
+      leaveStartDate = new Date(leaveStartDateQuery);
+      if (isNaN(leaveStartDate.getTime())) {
+        throw new ApiError(400, "Invalid Start Date");
+      }
+    }
+    if (leaveEndDateQuery) {
+      leaveEndDate = new Date(leaveEndDateQuery);
+      if (isNaN(leaveEndDate.getTime())) {
+        throw new ApiError(400, "Invalid End Date");
+      }
+    }
+    if (leaveStartDate) {
+      dateFilter.gte = leaveStartDate;
+    }
+    if (leaveEndDate) {
+      dateFilter.lte = leaveEndDate;
+    }
+
     const [allLeaveRequests, totalCount] = await prisma.$transaction([
       prisma.leave.findMany({
         where: {
           ...(status && { status: status }), // based on rule of && operator if left side is truthy then the expression become right side i.e, "PENDING"&&{status:"PENDING"} as left side is truthy then the expression become {status:"PENDING"} and after spread operator it become status:"PENDING"
+          ...(Object.keys(dateFilter).length > 0 && { date: dateFilter }),
         },
         include: {
           employee: {
@@ -728,6 +789,7 @@ const getAllLeaveRequests = asyncHandler(
       prisma.leave.count({
         where: {
           ...(status && { status: status }),
+          ...(Object.keys(dateFilter).length > 0 && { date: dateFilter }),
         },
       }),
     ]);
@@ -1183,10 +1245,19 @@ const getAllAttendance = asyncHandler(async (req: Request, res: Response) => {
     throw new ApiError(400, "Invalid Status");
   }
   const status = attendanceStatusQuery;
+  const attendanceDateQuery = req.query.date as string | undefined;
+  let attendanceDate: Date | undefined;
+  if (attendanceDateQuery) {
+    attendanceDate = new Date(attendanceDateQuery);
+    if (isNaN(attendanceDate.getTime())) {
+      throw new ApiError(400, "Invalid Date");
+    }
+  }
   const [attendance, totalCount] = await prisma.$transaction([
     prisma.attendance.findMany({
       where: {
         ...(status && { status: status }),
+        ...(attendanceDate && { date: attendanceDate }),
       },
       skip: skip,
       take: limit,

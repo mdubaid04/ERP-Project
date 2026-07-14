@@ -9,7 +9,6 @@ app.listen(port, async () => {
     console.log("DB Connection Successful");
   } catch (error) {
     console.log("DB connection failed due to some issues", error);
-
     process.exit(1);
   }
 });
