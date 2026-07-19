@@ -30,6 +30,8 @@ export interface AdminUser {
   role: "ADMIN";
 }
 
+export type User = EmployeeUser | AdminUser;
+
 export interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
@@ -60,5 +62,3 @@ export interface VerifyOTPResponse {
   status: boolean;
   data: User;
 }
-
-export type User = EmployeeUser | AdminUser;
