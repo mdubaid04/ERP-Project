@@ -42,6 +42,7 @@ export interface AuthState {
 
 export interface LoginPayload {
   email: string;
+  phoneNo?: undefined | string;
   password: string;
 }
 
@@ -61,4 +62,11 @@ export interface VerifyOTPResponse {
   message: string;
   status: boolean;
   data: User;
+}
+
+export interface ApiErrorResponse {
+  statusCode: number;
+  message: string;
+  data: null;
+  error: string[];
 }

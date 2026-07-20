@@ -3,6 +3,7 @@ import type { Express } from "express";
 import cors from "cors";
 
 import cookieParser from "cookie-parser";
+import { errorHandler } from "./middlewares/errorHandler";
 
 export const app: Express = express();
 app.use(
@@ -19,3 +20,4 @@ app.use(cookieParser());
 // routes
 import routes from "./routes/index.routes";
 app.use("/api/v1", routes);
+app.use(errorHandler);

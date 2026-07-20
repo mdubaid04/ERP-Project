@@ -7,7 +7,9 @@ import type {
   LoginResponse,
   LoginPayload,
   AuthState,
+  ApiErrorResponse,
 } from "./authTypes";
+import type { AxiosError } from "axios";
 
 const initialState: AuthState = {
   isAuthenticated: false,
@@ -19,17 +21,27 @@ const initialState: AuthState = {
 
 export const logIn = createAsyncThunk<LoginResponse, LoginPayload>(
   "login",
-  async (credentials) => {
-    const response = await loginApi(credentials);
-    return response.data;
+  async (credentials, { rejectWithValue }) => {
+    try {
+      const response = await loginApi(credentials);
+      return response.data;
+    } catch (err) {
+      const error = err as AxiosError<ApiErrorResponse>;
+      return rejectWithValue(error.response?.data);
+    }
   },
 );
 
 export const verifyOtp = createAsyncThunk<VerifyOTPResponse, verifyOTPPayload>(
   "verifyOtp",
-  async (payload) => {
-    const response = await verifyOtpApi(payload);
-    return response.data;
+  async (payload, { rejectWithValue }) => {
+    try {
+      const response = await verifyOtpApi(payload);
+      return response.data;
+    } catch (err) {
+      const error = err as AxiosError<ApiErrorResponse>;
+      return rejectWithValue(error.response?.data);
+    }
   },
 );
 

@@ -9,21 +9,28 @@ function AuthLayout() {
         alignItems: "center",
         justifyContent: "center",
         minHeight: "100vh",
-        bgcolor: "",
+        bgcolor: "#ffffff",
       }}
     >
       <Paper
-        elevation={6}
+        elevation={8}
         sx={{
           p: { xs: 3, sm: 4 },
-          width: "50%",
-          maxWidth: "400",
-          borderRadius: "2",
+          width: 450,
+          minHeight: 400,
+          borderRadius: "24px",
+          bgColor: "#ffffff",
         }}
       >
         <Typography
           variant="h5"
-          sx={{ fontWeight: 600, textAlign: "center", mb: 3 }}
+          sx={{
+            color: "#1a1a1a",
+            fontWeight: 400,
+            letterSpacing: "0.5px",
+            textAlign: "center",
+            mb: 1,
+          }}
         >
           ERP Management
         </Typography>

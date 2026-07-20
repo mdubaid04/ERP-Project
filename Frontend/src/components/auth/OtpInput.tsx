@@ -12,8 +12,12 @@ interface OtpInputProps extends Partial<MuiOtpInputProps> {
 const OtpInput = ({ length, error, helperText, ...props }: OtpInputProps) => {
   return (
     <Box>
-      <MuiOtpInput length={length} {...props} />
-      {error && <FormHelperText error={error}>{helperText}</FormHelperText>}
+      <MuiOtpInput length={length} {...props} sx={{ mb: 2 }} />
+      {error && (
+        <FormHelperText error={error} sx={{ mb: 2, textAlign: "center" }}>
+          {helperText}
+        </FormHelperText>
+      )}
     </Box>
   );
 };
