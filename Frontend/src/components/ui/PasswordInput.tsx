@@ -1,5 +1,8 @@
-import { VisibilityOff, Visibility } from "@mui/icons-material";
-import { FormHelperText, IconButton, InputAdornment } from "@mui/material";
+import VisibilityOff from "@mui/icons-material/VisibilityOff";
+import Visibility from "@mui/icons-material/Visibility";
+import InputAdornment from "@mui/material/InputAdornment";
+import FormHelperText from "@mui/material/FormHelperText";
+import IconButton from "@mui/material/IconButton";
 import Input from "@mui/material/Input";
 import InputLabel from "@mui/material/InputLabel";
 import FormControl from "@mui/material/FormControl";
@@ -30,7 +33,7 @@ function PasswordInput({
       size="small"
       variant="standard"
       required={requireValue}
-      sx={{ mb: 1, py: 1 }}
+      sx={{ mb: 2, py: 1 }}
     >
       <InputLabel htmlFor={name}>{label}</InputLabel>
       <Input

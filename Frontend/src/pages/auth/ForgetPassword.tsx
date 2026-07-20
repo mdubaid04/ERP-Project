@@ -1,44 +1,41 @@
 import { useForm, Controller } from "react-hook-form";
 import type { SubmitHandler } from "react-hook-form";
 import Input from "../../components/ui/Input";
-
-import PhoneInput from "../../components/ui/PhoneInput";
-import PasswordInput from "../../components/ui/PasswordInput";
-import { Box, Button, CircularProgress, Typography } from "@mui/material";
-import { Link } from "react-router-dom";
+import { Button, CircularProgress, Typography } from "@mui/material";
 import { useAppDispatch } from "../../app/hooks";
-import { logIn } from "../../features/auth/authSlice";
+import { forgetPassword } from "../../features/auth/authSlice";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import type {
   ApiErrorResponse,
-  LoginPayload,
+  ForgetPasswordPayload,
 } from "../../features/auth/authTypes";
+import PhoneInput from "../../components/ui/PhoneInput";
 
-function Login() {
+function ForgetPassword() {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const {
     control,
     handleSubmit,
     formState: { isSubmitting },
-  } = useForm<LoginPayload>({
-    defaultValues: { email: "", password: "", phoneNo: "" },
+  } = useForm<ForgetPasswordPayload>({
+    defaultValues: { email: "", phoneNo: "" },
   });
 
-  const onSubmit: SubmitHandler<LoginPayload> = async (data) => {
+  const onSubmit: SubmitHandler<ForgetPasswordPayload> = async (data) => {
     const payload = {
       ...data,
       phoneNo: data.phoneNo?.trim() === "" ? undefined : data.phoneNo,
     };
     try {
-      await dispatch(logIn(payload)).unwrap();
-      toast.success("OTP sent successfully");
-      navigate("/verify-otp");
+      await dispatch(forgetPassword(payload)).unwrap();
+      toast.success("Reset Password OTP sent successfully");
+      navigate("/reset-password");
     } catch (err) {
       const error = err as ApiErrorResponse;
-      toast.error(error?.message || "Login Failed");
-      console.log("Login Failed:", error);
+      toast.error(error?.message || "User Not Found");
+      console.log("Verification:", error);
     }
   };
 
@@ -54,11 +51,27 @@ function Login() {
           fontWeight: 450,
           letterSpacing: "0.5px",
           textAlign: "center",
-          mt: 1,
+          mt: 2,
+          mb: 2,
         }}
       >
-        Welcome Back
+        Let's Get You Back In
       </Typography>
+      <Typography
+        variant="body2"
+        component="p"
+        gutterBottom
+        sx={{
+          fontSize: 14,
+          fontWeight: 400,
+          letterSpacing: "0.5px",
+          textAlign: "center",
+          mb: 2,
+        }}
+      >
+        Enter your email address to reset your password
+      </Typography>
+
       <Controller
         name="email"
         control={control}
@@ -95,35 +108,6 @@ function Login() {
           />
         )}
       />
-
-      <Controller
-        name="password"
-        control={control}
-        rules={{ required: "Password is required" }}
-        render={({ field, fieldState: { error } }) => (
-          <PasswordInput
-            {...field}
-            label="Password"
-            type="password"
-            error={!!error}
-            helperText={error?.message}
-          />
-        )}
-      />
-      <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 3 }}>
-        <Link
-          to="/forget-password"
-          style={{ textDecoration: "none", fontSize: "14px", fontWeight: 500 }}
-        >
-          <Typography
-            variant="body2"
-            color="primary"
-            sx={{ letterSpacing: "0.5px" }}
-          >
-            Forgot Password?
-          </Typography>
-        </Link>
-      </Box>
       <Button
         variant="contained"
         type="submit"
@@ -134,11 +118,11 @@ function Login() {
         {isSubmitting ? (
           <CircularProgress size={24} color="inherit" />
         ) : (
-          "Sign in"
+          "Verify Yourself"
         )}
       </Button>
     </form>
   );
 }
 
-export default Login;
+export default ForgetPassword;

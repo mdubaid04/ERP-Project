@@ -1,5 +1,10 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import { loginApi, verifyOtpApi } from "../../api/auth.api";
+import {
+  loginApi,
+  verifyOtpApi,
+  forgetPasswordApi,
+  resetPasswordApi,
+} from "../../api/auth.api";
 
 import type {
   verifyOTPPayload,
@@ -8,6 +13,10 @@ import type {
   LoginPayload,
   AuthState,
   ApiErrorResponse,
+  ForgetPasswordPayload,
+  ForgetPasswordResponse,
+  ResetPasswordPayload,
+  ResetPasswordResponse,
 } from "./authTypes";
 import type { AxiosError } from "axios";
 
@@ -17,6 +26,7 @@ const initialState: AuthState = {
   isError: false,
   otpSend: false,
   user: null,
+  resetPasswordOtpSend: false,
 };
 
 export const logIn = createAsyncThunk<LoginResponse, LoginPayload>(
@@ -44,6 +54,32 @@ export const verifyOtp = createAsyncThunk<VerifyOTPResponse, verifyOTPPayload>(
     }
   },
 );
+
+export const forgetPassword = createAsyncThunk<
+  ForgetPasswordResponse,
+  ForgetPasswordPayload
+>("forgetPassword", async (payload, { rejectWithValue }) => {
+  try {
+    const response = await forgetPasswordApi(payload);
+    return response.data;
+  } catch (err) {
+    const error = err as AxiosError<ApiErrorResponse>;
+    return rejectWithValue(error.response?.data);
+  }
+});
+
+export const resetPassword = createAsyncThunk<
+  ResetPasswordResponse,
+  ResetPasswordPayload
+>("resetPassword", async (payload, { rejectWithValue }) => {
+  try {
+    const response = await resetPasswordApi(payload);
+    return response.data;
+  } catch (err) {
+    const error = err as AxiosError<ApiErrorResponse>;
+    return rejectWithValue(error.response?.data);
+  }
+});
 
 const authSlice = createSlice({
   name: "auth",
@@ -73,6 +109,30 @@ const authSlice = createSlice({
         console.log("rejected", action.payload);
         state.isError = true;
       }));
+    builder.addCase(forgetPassword.pending, (state) => {
+      state.isLoading = true;
+    });
+    builder.addCase(forgetPassword.fulfilled, (state) => {
+      state.isLoading = false;
+      state.resetPasswordOtpSend = true;
+      state.isError = false;
+    });
+    builder.addCase(forgetPassword.rejected, (state, action) => {
+      console.log("rejected", action.payload);
+      state.isError = true;
+    });
+    builder.addCase(resetPassword.pending, (state) => {
+      state.isLoading = true;
+    });
+    builder.addCase(resetPassword.fulfilled, (state) => {
+      state.isLoading = false;
+      state.resetPasswordOtpSend = false;
+      state.isError = false;
+    });
+    builder.addCase(resetPassword.rejected, (state, action) => {
+      console.log("rejected", action.payload);
+      state.isError = true;
+    });
   },
 });
 

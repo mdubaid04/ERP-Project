@@ -3,33 +3,34 @@ import type { SubmitHandler } from "react-hook-form";
 import { Button, CircularProgress, Typography } from "@mui/material";
 import { useAppDispatch } from "../../app/hooks";
 import { useNavigate } from "react-router-dom";
+import PasswordInput from "../../components/ui/PasswordInput";
 import OtpInput from "../../components/auth/OtpInput";
-import { verifyOtp } from "../../features/auth/authSlice";
-import type { verifyOTPPayload } from "../../features/auth/authTypes";
+import { resetPassword } from "../../features/auth/authSlice";
+import type { ResetPasswordPayload } from "../../features/auth/authTypes";
 import type { ApiErrorResponse } from "../../features/auth/authTypes";
 import toast from "react-hot-toast";
 
-function VerifyOtp() {
+function ResetPassword() {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const {
     control,
     handleSubmit,
     formState: { isSubmitting },
-  } = useForm<verifyOTPPayload>({
-    defaultValues: { otp: "" },
+  } = useForm<ResetPasswordPayload>({
+    defaultValues: { password: "", otp: "" },
   });
-  const onSubmit: SubmitHandler<verifyOTPPayload> = async (
-    data: verifyOTPPayload,
+  const onSubmit: SubmitHandler<ResetPasswordPayload> = async (
+    data: ResetPasswordPayload,
   ) => {
     try {
-      await dispatch(verifyOtp(data)).unwrap();
-      toast.success("Log In Successfully");
-      navigate("/dashboard");
+      await dispatch(resetPassword(data)).unwrap();
+      toast.success("Password reset successfully! Please Log In");
+      navigate("/");
     } catch (err) {
       const error = err as ApiErrorResponse;
       toast.error(error?.message || "Invalid OTP");
-      console.log("Login Failed:", error);
+      console.log("Password Reset Failed:", error);
     }
   };
 
@@ -49,12 +50,11 @@ function VerifyOtp() {
           mb: 2,
         }}
       >
-        Check Your Inbox
+        Create New Password
       </Typography>
       <Typography
         variant="body2"
         component="p"
-        gutterBottom
         sx={{
           fontSize: 14,
           fontWeight: 400,
@@ -66,6 +66,21 @@ function VerifyOtp() {
         Enter the OTP sent to your registered
         <br /> phone number or email
       </Typography>
+      <Controller
+        name="password"
+        control={control}
+        rules={{
+          required: "Password is required",
+        }}
+        render={({ field, fieldState: { error } }) => (
+          <PasswordInput
+            {...field}
+            label="New Password"
+            error={!!error}
+            helperText={error?.message}
+          />
+        )}
+      />
 
       <Controller
         name="otp"
@@ -88,16 +103,16 @@ function VerifyOtp() {
         type="submit"
         fullWidth
         disabled={isSubmitting}
-        sx={{ borderRadius: 3 }}
+        sx={{ borderRadius: 3, mt: 2 }}
       >
         {isSubmitting ? (
           <CircularProgress size={24} color="inherit" />
         ) : (
-          "Verify"
+          "Reset Password"
         )}
       </Button>
     </form>
   );
 }
 
-export default VerifyOtp;
+export default ResetPassword;
