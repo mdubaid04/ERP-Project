@@ -9,6 +9,7 @@ import { sendOtpEmail, sendResetPasswordOtpEmail } from "../utils/mailer";
 import tempToken from "../utils/temp_token_for_OTP";
 import jwt, { type JwtPayload } from "jsonwebtoken";
 import { generateAccessToken, generateRefreshToken } from "../utils/token";
+import type { CookieOptions } from "express";
 
 // Login Controller
 
@@ -51,12 +52,15 @@ const loginEmployee = asyncHandler(async (req: Request, res: Response) => {
       otpExpiry: otpExpiry,
     },
   });
-  await sendOtpEmail(employee.email, otp);
+  sendOtpEmail(employee.email, otp).catch((err) => {
+    console.log("Email Send Failed :", err);
+  });
   const temporaryToken = tempToken(employee.email);
   console.log("------tempToken------", temporaryToken);
-  const option = {
+  const option: CookieOptions = {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: true,
+    sameSite: "none",
     maxAge: 5 * 60 * 1000,
   };
 
@@ -104,14 +108,16 @@ const verifyOTP = asyncHandler(async (req: Request, res: Response) => {
     employee.email,
     employee.role
   );
-  const accessOption = {
+  const accessOption: CookieOptions = {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: true,
+    sameSite: "none",
     maxAge: 24 * 60 * 60 * 1000,
   };
-  const refreshOption = {
+  const refreshOption: CookieOptions = {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: true,
+    sameSite: "none",
     maxAge: 7 * 24 * 60 * 60 * 1000,
   };
   const refreshToken = generateRefreshToken(employee.empId);
@@ -170,9 +176,11 @@ const logout = asyncHandler(async (req: Request, res: Response) => {
       refreshToken: null,
     },
   });
-  const cookieOption = {
+  const cookieOption: CookieOptions = {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: true,
+    sameSite: "none",
+    maxAge: 0,
   };
 
   return res
@@ -249,11 +257,14 @@ const forgetPassword = asyncHandler(async (req: Request, res: Response) => {
       otpExpiry: otpExpiry,
     },
   });
-  await sendResetPasswordOtpEmail(email, otp);
+  sendResetPasswordOtpEmail(email, otp).catch((err) =>
+    console.log("resetPasswordOtpEmail Failed:", err)
+  );
   const token = tempToken(email);
-  const option = {
+  const option: CookieOptions = {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: true,
+    sameSite: "none",
     maxAge: 5 * 60 * 1000,
   };
   return res
