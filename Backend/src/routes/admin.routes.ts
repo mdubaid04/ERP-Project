@@ -15,8 +15,12 @@ import {
 import { authorizeRole } from "../middlewares/auth.middleware";
 import { verifyJwt } from "../middlewares/auth.middleware";
 import { get } from "node:http";
+import { adminDashboard } from "../controllers/admin.dashboard.controller";
 
 const router = Router();
+router
+  .route("/dashboard")
+  .get(verifyJwt, authorizeRole("ADMIN"), adminDashboard);
 router
   .route("/create-dept")
   .post(
