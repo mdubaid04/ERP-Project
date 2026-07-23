@@ -5,12 +5,14 @@ import {
   updateDepartment,
   getAllDepartments,
   getDepartmentById,
+  updateDeptIdOfEmployee,
 } from "../controllers/admin.controllers";
 import { validate } from "../middlewares/validate.middleware";
 import { registerSchema } from "../validators/employee.validator";
 import {
   createDeptSchema,
   updateDepartmentSchema,
+  updateDepartmentIdOfEmployeeSchema,
 } from "../validators/dept.validator";
 import { authorizeRole } from "../middlewares/auth.middleware";
 import { verifyJwt } from "../middlewares/auth.middleware";
@@ -37,6 +39,10 @@ router
     validate(registerSchema),
     registerEmployee
   );
+
+router
+  .route("/update-employee-dept/:empId")
+  .patch(verifyJwt, authorizeRole("ADMIN"), updateDeptIdOfEmployee);
 
 router
   .route("/update-dept")

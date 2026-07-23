@@ -3,7 +3,7 @@ export interface EmployeeUser {
   firstName: string;
   lastName: string;
   email: string;
-  role: "EMPLOYEE";
+  role: "EMPLOYEE" | "MANAGER";
   profilePic: string | null;
   phoneNo: string;
   dateOfBirth: string | null;
@@ -38,6 +38,7 @@ export interface AuthState {
   isError: boolean;
   otpSend: boolean;
   user: User | null;
+  resetPasswordOtpSend: boolean;
 }
 
 export interface LoginPayload {
@@ -58,6 +59,37 @@ export interface LoginResponse {
 }
 
 export interface VerifyOTPResponse {
+  statusCode: number;
+  message: string;
+  status: boolean;
+  data: User;
+}
+
+export interface ForgetPasswordResponse {
+  statusCode: number;
+  message: string;
+  status: boolean;
+  data: Record<string, never>;
+}
+
+export interface ForgetPasswordPayload {
+  email: string;
+  phoneNo?: undefined | string;
+}
+
+export interface ResetPasswordPayload {
+  password: string;
+  otp: string;
+}
+
+export interface ResetPasswordResponse {
+  statusCode: number;
+  message: string;
+  status: boolean;
+  data: Record<string, never>;
+}
+
+export interface MyProfileResponse {
   statusCode: number;
   message: string;
   status: boolean;

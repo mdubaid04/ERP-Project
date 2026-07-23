@@ -18,15 +18,16 @@ api.interceptors.response.use(
   },
   async (error) => {
     const originalRequest = error.config;
-    if (error.response.status === 401 && !originalRequest._retry) {
+    if (error.response.status === 404 && !originalRequest._retry) {
       originalRequest._retry = true;
 
       try {
-        await axios.post(
-          "http://127.0.0.1:4000/api/v1/auth/refresh-access-token",
+        const result = await axios.post(
+          "http://localhost:4000/api/v1/auth/refresh-access-token",
           {},
           { withCredentials: true },
         );
+        console.log("result------------", result);
         return api.request(originalRequest);
       } catch (refreshError) {
         window.dispatchEvent(new Event("unauthorized"));

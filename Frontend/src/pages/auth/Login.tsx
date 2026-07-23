@@ -14,6 +14,7 @@ import type {
   ApiErrorResponse,
   LoginPayload,
 } from "../../features/auth/authTypes";
+import { useAppSelector } from "../../app/hooks";
 
 function Login() {
   const navigate = useNavigate();
@@ -42,6 +43,8 @@ function Login() {
     }
   };
 
+  const authValue = useAppSelector((state) => state.auth.isAuthenticated);
+  console.log("Authentication----", authValue);
   return (
     <form onSubmit={handleSubmit(onSubmit)}>
       <Typography

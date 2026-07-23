@@ -21,7 +21,7 @@ const router = Router();
 router.route("/login").post(validate(loginSchema), loginEmployee);
 router.route("/verifyOTP").post(validate(verifyOTPSchema), verifyOTP);
 router.route("/logout").post(verifyJwt, logout);
-router.route("/refresh-access-token").post(verifyJwt, refreshAccessToken);
+router.route("/refresh-access-token").post(refreshAccessToken);
 router
   .route("/forget-password")
   .post(validate(forgetPasswordSchema), forgetPassword);

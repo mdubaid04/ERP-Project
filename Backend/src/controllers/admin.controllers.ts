@@ -64,6 +64,128 @@ const registerEmployee = asyncHandler(async (req: Request, res: Response) => {
     .json(new ApiResponse(201, "Employee registered successfully", employee));
 });
 
+// Update DeptId of Employee
+
+const updateDeptIdOfEmployee = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { empId } = req.params;
+    console.log("empId", empId);
+    const { deptId } = req.body;
+    console.log("deptId", deptId);
+    const checkDept = await prisma.department.findUnique({
+      where: {
+        deptId: Number(deptId),
+      },
+      select: {
+        deptId: true,
+        name: true,
+        manager: {
+          select: {
+            firstName: true,
+            lastName: true,
+          },
+        },
+      },
+    });
+    console.log("checkDept", checkDept);
+    if (!checkDept) {
+      throw new ApiError(404, "Department Not Found");
+    }
+    if (isNaN(Number(empId))) {
+      throw new ApiError(400, "Invalid Employee Id");
+    }
+    const existingEmployee = await prisma.employee.findUnique({
+      where: {
+        empId: Number(empId),
+      },
+      select: {
+        departmentId: true,
+        department: {
+          select: {
+            name: true,
+          },
+        },
+      },
+    });
+    if (!existingEmployee) {
+      throw new ApiError(404, "Employee Not Found");
+    }
+    const employee = await prisma.employee.update({
+      where: {
+        empId: Number(empId),
+      },
+      data: {
+        departmentId: Number(deptId),
+      },
+      include: {
+        department: {
+          select: {
+            name: true,
+          },
+        },
+      },
+    });
+    let Text;
+    if (existingEmployee.departmentId === null) {
+      Text = `Hi [${employee.firstName} ${employee.lastName}],
+
+      Welcome aboard! We're pleased to let you know that your department assignment has now been finalized.
+
+      You have been assigned to the [${checkDept.name}] department . Your reporting manager will be [${checkDept.manager?.firstName} ${checkDept.manager?.lastName}] , and you can reach out to them directly for any onboarding-related queries specific to your team.
+
+      If you have any questions about this assignment or need further details, please don't hesitate to contact HR.
+
+      Welcome to the team, and we look forward to working with you!
+
+      Best regards,
+      [${req.user.firstName} ${req.user.lastName}]
+  `;
+    } else {
+      Text = `Hi ${employee.firstName} ${employee.lastName},
+
+    This is to inform you that your department has been updated in our records.
+
+    Previous Department: [${existingEmployee.department?.name}]
+    New Department: [${checkDept.name}]
+
+    Your new reporting manager will be [${checkDept.manager?.firstName} ${checkDept.manager?.lastName}]. Please coordinate with them for any handover or onboarding steps related to your new team.
+
+    If you have any questions regarding this transfer, feel free to reach out to HR.
+
+    
+`;
+    }
+
+    sendEmail({
+      To: employee.email,
+      Subject: "Department Updated",
+      Text: Text,
+      Html: `<div style="font-family:Arial, Helvetica, sans-serif;max-width:480px;margin:auto;padding:24px; border : 1px solid #e0e0e0; border-radius:8px;">
+      <h2 style="color:#333;">Department Updated</h2>
+      <p style="color:#555; font-size:14px;">${Text}</p>
+      <p style="color:#555; font-size:16px;">Best regards,<br/>
+    ${req.user.firstName} ${req.user.lastName}.</p>
+      </div>`,
+    })
+      .then(() => {
+        console.log("Email sent successfully");
+      })
+      .catch((error) => {
+        console.error("Error sending email:", error);
+      });
+
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(
+          200,
+          "Employee department updated successfully",
+          employee
+        )
+      );
+  }
+);
+
 //get All Employees
 
 const getAllEmployees = asyncHandler(async (req: Request, res: Response) => {
@@ -1905,6 +2027,7 @@ const getPayrollHistoryByEmpId = asyncHandler(
 
 export {
   registerEmployee,
+  updateDeptIdOfEmployee,
   getAllEmployees,
   getEmployeeById,
   getEmployeeByDeptId,

@@ -1,7 +1,7 @@
 import { useForm, Controller } from "react-hook-form";
 import type { SubmitHandler } from "react-hook-form";
 import { Button, CircularProgress, Typography } from "@mui/material";
-import { useAppDispatch } from "../../app/hooks";
+import { useAppDispatch, useAppSelector } from "../../app/hooks";
 import { useNavigate } from "react-router-dom";
 import OtpInput from "../../components/auth/OtpInput";
 import { verifyOtp } from "../../features/auth/authSlice";
@@ -12,6 +12,7 @@ import toast from "react-hot-toast";
 function VerifyOtp() {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
+  const user = useAppSelector((state) => state.auth.user);
   const {
     control,
     handleSubmit,
@@ -19,13 +20,27 @@ function VerifyOtp() {
   } = useForm<verifyOTPPayload>({
     defaultValues: { otp: "" },
   });
+
   const onSubmit: SubmitHandler<verifyOTPPayload> = async (
     data: verifyOTPPayload,
   ) => {
     try {
       await dispatch(verifyOtp(data)).unwrap();
       toast.success("Log In Successfully");
-      navigate("/dashboard");
+      switch (user?.role) {
+        case "ADMIN":
+          navigate("/admin/dashboard", { replace: true });
+          break;
+        case "EMPLOYEE":
+          navigate("/employee/dashboard", { replace: true });
+          break;
+        case "MANAGER":
+          navigate("/manager/dashboard", { replace: true });
+          break;
+        default:
+          navigate("/", { replace: true });
+      }
+      navigate("/admin/dashboard");
     } catch (err) {
       const error = err as ApiErrorResponse;
       toast.error(error?.message || "Invalid OTP");

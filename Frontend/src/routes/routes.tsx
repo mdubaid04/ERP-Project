@@ -4,6 +4,9 @@ import Login from "../pages/auth/Login";
 import VerifyOtp from "../pages/auth/VerifyOtp";
 import ForgetPassword from "../pages/auth/ForgetPassword";
 import ResetPassword from "../pages/auth/ResetPassword";
+import { DashboardLayout } from "../components/layout/DashboardLayout";
+import ProtectedRoute from "./ProtectedRoute";
+import AdminDashboard from "../pages/dashboard/AdminDashboard";
 
 const router = createBrowserRouter([
   {
@@ -25,6 +28,21 @@ const router = createBrowserRouter([
       {
         path: "/reset-password",
         element: <ResetPassword />,
+      },
+    ],
+  },
+  {
+    element: <ProtectedRoute allowedRoles={["ADMIN"]} />,
+    children: [
+      {
+        path: "/admin/dashboard",
+        element: <DashboardLayout />,
+        children: [
+          {
+            index: true,
+            element: <AdminDashboard />,
+          },
+        ],
       },
     ],
   },

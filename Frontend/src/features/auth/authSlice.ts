@@ -4,6 +4,7 @@ import {
   verifyOtpApi,
   forgetPasswordApi,
   resetPasswordApi,
+  myProfileApi,
 } from "../../api/auth.api";
 
 import type {
@@ -17,6 +18,7 @@ import type {
   ForgetPasswordResponse,
   ResetPasswordPayload,
   ResetPasswordResponse,
+  MyProfileResponse,
 } from "./authTypes";
 import type { AxiosError } from "axios";
 
@@ -81,6 +83,20 @@ export const resetPassword = createAsyncThunk<
   }
 });
 
+export const checkAuth = createAsyncThunk<MyProfileResponse, void>(
+  "checkAuth",
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await myProfileApi();
+      console.log("Inside checkAuth--", response.data);
+      return response.data;
+    } catch (err) {
+      const error = err as AxiosError<ApiErrorResponse>;
+      return rejectWithValue(error.response?.data);
+    }
+  },
+);
+
 const authSlice = createSlice({
   name: "auth",
   initialState,
@@ -95,6 +111,7 @@ const authSlice = createSlice({
           (state.isError = true));
       }),
       builder.addCase(logIn.rejected, (state, action) => {
+        state.isLoading = false;
         console.log("logIn Failed", action.payload);
         state.isError = true;
       }),
@@ -106,6 +123,7 @@ const authSlice = createSlice({
         ((state.user = action.payload.data), (state.isError = false));
       }),
       builder.addCase(verifyOtp.rejected, (state, action) => {
+        state.isLoading = false;
         console.log("rejected", action.payload);
         state.isError = true;
       }));
@@ -118,6 +136,7 @@ const authSlice = createSlice({
       state.isError = false;
     });
     builder.addCase(forgetPassword.rejected, (state, action) => {
+      state.isLoading = false;
       console.log("rejected", action.payload);
       state.isError = true;
     });
@@ -130,6 +149,21 @@ const authSlice = createSlice({
       state.isError = false;
     });
     builder.addCase(resetPassword.rejected, (state, action) => {
+      state.isLoading = false;
+      console.log("rejected", action.payload);
+      state.isError = true;
+    });
+    builder.addCase(checkAuth.pending, (state) => {
+      state.isLoading = true;
+    });
+    builder.addCase(checkAuth.fulfilled, (state, action) => {
+      state.isLoading = false;
+      state.isAuthenticated = true;
+      state.user = action.payload.data;
+      state.isError = false;
+    });
+    builder.addCase(checkAuth.rejected, (state, action) => {
+      state.isLoading = false;
       console.log("rejected", action.payload);
       state.isError = true;
     });

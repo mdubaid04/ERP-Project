@@ -7,6 +7,7 @@ app.listen(port, async () => {
   try {
     await basePrisma.$connect(); // not necessary if you use prisma client but good practice it is
     console.log("DB Connection Successful");
+    console.log(`Server running on port ${port}`);
   } catch (error) {
     console.log("DB connection failed due to some issues", error);
     process.exit(1);

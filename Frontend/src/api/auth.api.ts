@@ -22,3 +22,5 @@ export const forgetPasswordApi = (Payload: ForgetPasswordPayload) =>
 
 export const resetPasswordApi = (Payload: ResetPasswordPayload) =>
   api.post<ResetPasswordResponse>("/auth/reset-password", Payload);
+
+export const myProfileApi = () => api.get("/employee/");

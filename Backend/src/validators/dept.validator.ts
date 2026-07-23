@@ -7,7 +7,9 @@ const createDeptSchema = zod.object({
     .max(20, "Name must be at most 20 characters long"),
   managerId: zod.number().optional(),
 });
-
+const updateDepartmentIdOfEmployeeSchema = zod.object({
+  departmentId: zod.number().min(1, "departmentId is required"),
+});
 const updateDepartmentSchema = zod.object({
   name: zod
     .string()
@@ -16,4 +18,8 @@ const updateDepartmentSchema = zod.object({
     .optional(),
   managerId: zod.number().optional(),
 });
-export { createDeptSchema, updateDepartmentSchema };
+export {
+  createDeptSchema,
+  updateDepartmentSchema,
+  updateDepartmentIdOfEmployeeSchema,
+};

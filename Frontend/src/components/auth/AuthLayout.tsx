@@ -1,7 +1,12 @@
 import { Box, Paper, Typography } from "@mui/material";
-import { Outlet } from "react-router-dom";
+import { Outlet, Navigate } from "react-router-dom";
+import { useAppSelector } from "../../app/hooks";
 
 function AuthLayout() {
+  const isUser = useAppSelector((state) => state.auth.user);
+  if (isUser) {
+    return <Navigate to="/admin/dashboard" replace />;
+  }
   return (
     <Box
       sx={{
